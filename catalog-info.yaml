@@ -5,6 +5,10 @@ metadata:
   description: Cybersource cartridge
   annotations:
    github.com/project-slug: simpleenergy/link_cybersource
+   lucid.app/arch-diagrams: N/A
+   uplightinc.atlassian.net/sla: https://uplightinc.atlassian.net/wiki/spaces/JAG/pages/7436894395/Marketplace+-+Service+Level+Agreements
+   uplightinc.atlassian.net/sli: https://uplightinc.atlassian.net/wiki/spaces/JAG/pages/7445774739/Marketplace+-+Service+Level+Indicators
+   uplightinc.atlassian.net/slo: https://uplightinc.atlassian.net/wiki/spaces/JAG/pages/7446200322/Marketplace+-+Service+Level+Objectives
 spec:
   type: library
   lifecycle: production
