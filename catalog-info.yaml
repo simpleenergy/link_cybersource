@@ -9,6 +9,11 @@ metadata:
    uplightinc.atlassian.net/sla: https://uplightinc.atlassian.net/wiki/spaces/JAG/pages/7436894395/Marketplace+-+Service+Level+Agreements
    uplightinc.atlassian.net/sli: https://uplightinc.atlassian.net/wiki/spaces/JAG/pages/7445774739/Marketplace+-+Service+Level+Indicators
    uplightinc.atlassian.net/slo: https://uplightinc.atlassian.net/wiki/spaces/JAG/pages/7446200322/Marketplace+-+Service+Level+Objectives
+   snyk.io/org-id: 4a1bba66-4be8-4eb0-8a24-c1219a94df5a
+  links:
+  - url: https://app.apptio.com/cloudability#/dashboards/1218243?viewId=452568
+    title: Cloud Cost Dashboard
+    icon: dashboard
 spec:
   type: library
   lifecycle: production
