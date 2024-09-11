@@ -10,6 +10,10 @@ metadata:
    uplightinc.atlassian.net/sli: https://uplightinc.atlassian.net/wiki/spaces/JAG/pages/7445774739/Marketplace+-+Service+Level+Indicators
    uplightinc.atlassian.net/slo: https://uplightinc.atlassian.net/wiki/spaces/JAG/pages/7446200322/Marketplace+-+Service+Level+Objectives
    snyk.io/org-id: 4a1bba66-4be8-4eb0-8a24-c1219a94df5a
+   uplightinc.atlassian.net/deployment-strategy: https://uplightinc.atlassian.net/wiki/spaces/PE/pages/7683768404/MP2+Deployment+Strategy
+   uplightinc.atlassian.net/incident-management: https://uplightinc.atlassian.net/wiki/spaces/PE/pages/7023263853/Marketplace+Outage+Communication+Protocol
+   pagerduty.com/service-id: P9HDNFJ
+   backstage.io/techdocs-ref: url:https://uplightinc.atlassian.net/wiki/spaces/JAG/pages/7711490053/Commerce+cloud+Runbook
   links:
   - url: https://app.apptio.com/cloudability#/dashboards/1218243?viewId=452568
     title: Cloud Cost Dashboard
