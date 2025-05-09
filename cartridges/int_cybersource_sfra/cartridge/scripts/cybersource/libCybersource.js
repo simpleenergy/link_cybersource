@@ -10,6 +10,7 @@
  *
  */
 var Site = require('dw/system/Site');
+var Logger = require('dw/system/Logger');
 
 // Helper method to export the helper
 function getCybersourceHelper() {
@@ -193,7 +194,9 @@ function replaceCharsInSessionID(sessionID) {
 var CybersourceHelper = {
 
     getcsReference: function() {
-        var wsdlName = Site.getCurrent().getCustomPreferenceValue('CsKeystore_Name');
+        var wsdlName = Site.getCurrent().getCustomPreferenceValue('CsP12_Name');
+        Logger.debug('wsdlName: {0}', wsdlName);
+        Logger.debug('wsdlName: {0}', webreferences2);
         var webref = webreferences2[wsdlName];
         return webref;
     },

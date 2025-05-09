@@ -732,13 +732,13 @@ if (IsCartridgeEnabled) {
                 || paymentInstrument.paymentMethod == Resource.msg('paymentmethodname.mch', 'cybersource', null)
                 || paymentInstrument.paymentMethod == Resource.msg('paymentmethodname.paypalcredit', 'cybersource', null)
                 || paymentInstrument.paymentMethod == Resource.msg('paymentmethodname.googlepay', 'cybersource', null)
-
-
+            ) {
             res.json({
                 error: true,
                 errorMessage: Resource.msgf('error.technical', 'checkout', null, getAbsoluteUrl('[globalUrl=support]'))
             });
             return next();
+        }
         } if (handlePaymentResult.declined) {
             session.privacy.SkipTaxCalculation = false;
             Transaction.wrap(function () { OrderMgr.failOrder(order, true); });
@@ -936,6 +936,7 @@ if (IsCartridgeEnabled) {
             continueUrl: URLUtils.url('COPlaceOrder-SubmitOrderConformation', 'ID', order.orderNo, 'token', order.orderToken).toString()
         });
         return next();
+    }
     });
 }
 
