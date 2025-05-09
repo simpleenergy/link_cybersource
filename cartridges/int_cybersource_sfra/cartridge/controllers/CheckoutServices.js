@@ -562,10 +562,16 @@ if (IsCartridgeEnabled) {
             session.privacy.screenWidth = browserfields.screenWidth;
             session.privacy.screenHeight = browserfields.screenHeight;
         }
-
-        // Added this session so that it doesn't get into second time, it comes to PlaceOrder.
-        if (session.custom.flag == true) {
+        var orderNo = session.privacy.orderId;
+        if (!empty(orderNo)) {
+            var order = OrderMgr.getOrder(orderNo);
+            Transaction.wrap(function () {
+                currentBasket = BasketMgr.createBasketFromOrder(order);
+            });
+        }
+        else {
             currentBasket = BasketMgr.getCurrentBasket();
+        }
         if (!currentBasket) {
             if ('isPaymentRedirectInvoked' in session.privacy && session.privacy.isPaymentRedirectInvoked
                 && 'orderID' in session.privacy && session.privacy.orderID !== null) {
@@ -676,7 +682,13 @@ if (IsCartridgeEnabled) {
 
 
         // Creates a new order.
-        var order = COHelpers.createOrder(currentBasket);
+        var order = null;
+        if(!orderNo) {
+            order = COHelpers.createOrder(currentBasket);
+            session.privacy.orderId = order.orderNo;
+        } else {
+            order = OrderMgr.getOrder(orderNo);
+        }
         if (!order) {
             res.redirect(URLUtils.https('Checkout-Begin', 'stage', 'placeOrder', 'PlaceOrderError', Resource.msgf('error.technical', 'checkout', null, getAbsoluteUrl('[globalUrl=support]'))));
             return next();
@@ -936,9 +948,8 @@ if (IsCartridgeEnabled) {
             continueUrl: URLUtils.url('COPlaceOrder-SubmitOrderConformation', 'ID', order.orderNo, 'token', order.orderToken).toString()
         });
         return next();
-    }
-    });
-}
+    })
+};
 
 server.get('PayerAuthentication', server.middleware.https, function (req, res, next) {
     var OrderMgr = require('dw/order/OrderMgr');
