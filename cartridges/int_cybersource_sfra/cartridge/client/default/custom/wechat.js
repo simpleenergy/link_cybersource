@@ -1,3 +1,4 @@
+
 'use strict';
 
 /* eslint-disable no-undef */
@@ -15,9 +16,10 @@ function weChatCheckStatus(serviceCalls, enforceError) {
     var weChatRedirectUrl = document.getElementById('weChatRedirectUrl').value;
     var noOfCalls = document.getElementById('noOfCalls').value;
     var serviceCallInterval = document.getElementById('serviceCallInterval').value;
-
+    weChatUrl = encodeURIComponent(weChatUrl);
+    weChatRedirectUrl = encodeURIComponent(weChatRedirectUrl);
     $.ajax({
-        url: weChatUrl,
+        url: decodeURIComponent(weChatUrl),
         method: 'POST',
         data: request,
         async: false,
@@ -25,7 +27,7 @@ function weChatCheckStatus(serviceCalls, enforceError) {
         success: function (data) {
             if (enforceError && !data.submit) {
                 $('.modal').spinner().stop();
-                window.location.href = weChatRedirectUrl;
+                window.location.href = decodeURIComponent(weChatRedirectUrl);
                 return;
             }
 
@@ -35,7 +37,11 @@ function weChatCheckStatus(serviceCalls, enforceError) {
             } else if (data.pending) {
                 if (serviceCalls < noOfCalls) {
                     totalServiceCalls += 1;
-                    setTimeout(function () { weChatCheckStatus(totalServiceCalls); }, serviceCallInterval * 1000);
+                    if (delayTime === 'Long') {
+                        setTimeout(function () { weChatCheckStatus(totalServiceCalls); }, serviceCallInterval * 5000);
+                    } else if (delayTime === 'Short') {
+                        setTimeout(function () { weChatCheckStatus(totalServiceCalls); }, serviceCallInterval * 1000);
+                    }
                 } else {
                     $('.modal').spinner().stop();
                     window.location.href = data.redirectUrl;

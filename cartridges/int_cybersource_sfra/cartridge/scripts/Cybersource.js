@@ -11,8 +11,8 @@
 
 var Transaction = require('dw/system/Transaction');
 var Site = require('dw/system/Site');
-var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
-var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
+var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
+var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
 
 /**
  * Verifies a credit card against a valid card number and expiration date and possibly invalidates invalid form fields.
@@ -98,12 +98,12 @@ function HandleCard(basket, paymentInformation) {
  * Capture Credit Card paid amount, authorize if decision ACCEPT
  */
 function CaptureCard(args) {
-    var CardFacade = require('~/cartridge/scripts/facade/CardFacade');
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardFacade = require('*/cartridge/scripts/facade/CardFacade');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     var captureResponse = CardFacade.CCCaptureRequest(args.Order);
     if (captureResponse.success) {
         var paymentInstrument = CardHelper.getNonGCPaymemtInstument(args.Order);
-        var PaymentInstrumentUtils = require('~/cartridge/scripts/utils/PaymentInstrumentUtils');
+        var PaymentInstrumentUtils = require('*/cartridge/scripts/utils/PaymentInstrumentUtils');
         PaymentInstrumentUtils.UpdatePaymentTransactionCardCapture(paymentInstrument, args.Order, captureResponse.serviceResponse);
         switch (captureResponse.serviceResponse.Decision) {
             case 'ACCEPT':
@@ -130,13 +130,13 @@ function DAVCheck(args) {
     billTo = result.billTo;
     result = CommonHelper.CreateCybersourceShipToObject(basket);
     shipTo = result.shipTo;
-    var CardFacade = require('~/cartridge/scripts/facade/CardFacade');
+    var CardFacade = require('*/cartridge/scripts/facade/CardFacade');
     result = CardFacade.DAVRequest(args.Order, billTo, shipTo);
     // facade response handling
     if (result.error) {
         return { error: true };
     }
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     return CardHelper.HandleDAVResponse(result.serviceResponse);
 }
 
@@ -150,7 +150,7 @@ function Process3DRequestParent(args) {
         var order = args.Order;
         var paymentInstrument;
         var orderNo = order.orderNo;
-        var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+        var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
         session.privacy.order_id = orderNo;
         paymentInstrument = CardHelper.getNonGCPaymemtInstument(order);
         if (empty(paymentInstrument.getCreditCardToken()) && !empty(session.forms.billing.creditCardFields.selectedCardID.value)) {
@@ -163,22 +163,17 @@ function Process3DRequestParent(args) {
         }
         if (paymentInstrument.paymentMethod !== CybersourceConstants.METHOD_VISA_CHECKOUT) {
             var PAResponsePARes = request.httpParameterMap.PaRes.value;
-            var PAXID = request.httpParameterMap.PAXID.value;
-            var transactionId = request.httpParameterMap.processorTransactionId.value != null ? request.httpParameterMap.processorTransactionId.value : '';
-            var CardFacade = require('~/cartridge/scripts/facade/CardFacade');
+            var PAXID = session.privacy.PAXID;
+            var transactionId = request.httpParameterMap.TransactionId.value != null ? request.httpParameterMap.TransactionId.value : '';
+            var CardFacade = require('*/cartridge/scripts/facade/CardFacade');
             var payerAuthbillTo = CommonHelper.CreateCyberSourceBillToObject(order, true);
             var payerAuthshipTo= CommonHelper.CreateCybersourceShipToObject(order);
             var purchaseObject = CommonHelper.CreateCybersourcePurchaseTotalsObject(order);
             var payerAuthsitems = CommonHelper.CreateCybersourceItemObject(order);
             var items = payerAuthsitems.items;
             var result = CardFacade.PayerAuthValidation(PAResponsePARes, paymentInstrument.paymentTransaction.amount, orderNo, session.forms.billing.creditCardFields, paymentInstrument.getCreditCardToken(), transactionId, payerAuthbillTo.billTo, paymentInstrument, payerAuthshipTo.shipTo, purchaseObject.purchaseTotals, items);
-
-            var scaEnabled = dw.system.Site.getCurrent().getCustomPreferenceValue('IsSCAEnabled');
-            if(scaEnabled && result.serviceResponse.ReasonCode === 478 && session.custom.SCA === false){
-                session.custom.SCA = true ;
-                result = CardFacade.PayerAuthValidation(PAResponsePARes, paymentInstrument.paymentTransaction.amount, orderNo, session.forms.billing.creditCardFields, paymentInstrument.getCreditCardToken(), transactionId, payerAuthbillTo.billTo, paymentInstrument, payerAuthshipTo.shipTo, purchaseObject.purchaseTotals, items);  
-            }
-            if (result.success && (result.serviceResponse.ReasonCode === 100 || result.serviceResponse.ReasonCode == '480') && (!empty(PAXID) ? PAXID === result.serviceResponse.PAVXID : true)) {
+          
+            if (result.success && (result.serviceResponse.ReasonCode === 100 || result.serviceResponse.ReasonCode == '480' || result.serviceResponse.ReasonCode === 478) && (!empty(PAXID) ? PAXID === result.serviceResponse.PAVXID : true)) {
                 var secureAcceptanceHelper = require(CybersourceConstants.SECUREACCEPTANCEHELPER);
                 result = secureAcceptanceHelper.HookIn3DRequest({
                     Order: order, payerValidationResponse: result.serviceResponse, paymentInstrument: paymentInstrument, SubscriptionID: paymentInstrument.getCreditCardToken()
@@ -188,6 +183,10 @@ function Process3DRequestParent(args) {
                 }
                 if (result.review) {
                     return { review: true };
+                }
+                if(result.sca && session.custom.SCA == true){
+                    session.custom.SCA = false;
+                    return {sca:true};
                 }
             }
             var Status = require('dw/system/Status');
@@ -245,14 +244,14 @@ function ResetPaymentForms(args) {
  */
 // eslint-disable-next-line
 function createSubscriptionBilling(args) {
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     var cardObject = CardHelper.CreateCybersourcePaymentCardObject('billing');
     if (cardObject.success && !empty(cardObject.card)) {
         var billToResult = CommonHelper.CreateCyberSourceBillToObject_UserData('billing');
         if (billToResult.success && !empty(billToResult.billTo)) {
             var purchaseTotalsResult = CommonHelper.CreateCyberSourcePurchaseTotalsObject_UserData(args.Basket.getCurrencyCode(), args.Basket.getTotalGrossPrice().getValue().toFixed(2));
             if (purchaseTotalsResult.success && !empty(purchaseTotalsResult.purchaseTotals)) {
-                var SubscriptionFacade = require('~/cartridge/scripts/facade/SubscriptionFacade');
+                var SubscriptionFacade = require('*/cartridge/scripts/facade/SubscriptionFacade');
                 var subscriptionResult = SubscriptionFacade.CreateSubscription(billToResult.billTo, cardObject.card, purchaseTotalsResult.purchaseTotals);
                 if (subscriptionResult.success && !empty(subscriptionResult.serviceResponse)) {
                     cardObject = null;// null  the card object CyberSourcePaymentCard
@@ -278,6 +277,7 @@ function createSubscriptionBilling(args) {
  */
 function saveCreditCard() {
     var subscriptionID;
+    var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
     var BasketMgr = require('dw/order/BasketMgr');
     var PaymentInstrument = require('dw/order/PaymentInstrument');
     var basket = BasketMgr.getCurrentOrNewBasket();
@@ -286,31 +286,26 @@ function saveCreditCard() {
     if (!empty(basket.getPaymentInstruments(CybersourceConstants.METHOD_PAYPAL))) {
         return true;
     }
+
     if (!empty(customer) && customer.authenticated && session.forms.billing.creditCardFields.saveCard.value
-        && session.forms.billing.paymentMethod.value.equals(PaymentInstrument.METHOD_CREDIT_CARD)|| CsSAType.equals(CybersourceConstants.METHOD_SA_SILENTPOST) ) {
+        && session.forms.billing.paymentMethod.value.equals(PaymentInstrument.METHOD_CREDIT_CARD) || (CsSAType && CsSAType.equals(CybersourceConstants.METHOD_SA_SILENTPOST))) {
         subscriptionID = CommonHelper.GetSubscriptionToken(session.forms.billing.creditCardFields.selectedCardID.value, customer);
+        if (session.privacy.subscriptionID != null) {
+            subscriptionID = session.privacy.subscriptionID;
+            session.privacy.subscriptionID = '';
+        }
         if (empty(subscriptionID)) {
             var createSubscriptionBillingResult = createSubscriptionBilling({ Basket: basket });
             subscriptionID = createSubscriptionBillingResult.subscriptionID;
         }
         var creditCards = customer.getProfile().getWallet().getPaymentInstruments(PaymentInstrument.METHOD_CREDIT_CARD);
-        var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
-        
-        var payInstrument = CardHelper.getNonGCPaymemtInstument(basket);
-        Transaction.wrap(function () {
-        	var newCreditCard = null;
-            var isDuplicateCard = false;
+        var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
 
-            var ccNumber = session.forms.billing.creditCardFields.cardNumber.value;
-            for (var i = 0; i < creditCards.length; i++) {
-                var creditcard = creditCards[i];
-                var creditcardNo = creditcard.getCreditCardNumber();
-                if (creditcard.creditCardExpirationMonth === session.forms.billing.creditCardFields.expirationMonth.value && creditcard.creditCardExpirationYear === session.forms.billing.creditCardFields.expirationYear.value && creditcard.creditCardType === session.forms.billing.creditCardFields.cardType.value && creditcardNo.toString().substring(creditcardNo.length-4).equals(ccNumber.substring(ccNumber.length-4))) {
-                    isDuplicateCard = true;
-                    break;
-                }
-            }
-            if (!isDuplicateCard) {
+        var payInstrument = CardHelper.getNonGCPaymemtInstument(basket);
+        if (!empty(subscriptionID)) {
+            Transaction.wrap(function () {
+                var newCreditCard = null;
+
                 var wallet = customer.getProfile().getWallet();
                 newCreditCard = customer.getProfile().getWallet().createPaymentInstrument(PaymentInstrument.METHOD_CREDIT_CARD);
 
@@ -320,15 +315,14 @@ function saveCreditCard() {
                 newCreditCard.setCreditCardNumber(session.forms.billing.creditCardFields.cardNumber.value);
                 newCreditCard.setCreditCardExpirationMonth(session.forms.billing.creditCardFields.expirationMonth.value);
                 newCreditCard.setCreditCardExpirationYear(session.forms.billing.creditCardFields.expirationYear.value);
-                newCreditCard.setCreditCardType(session.forms.billing.creditCardFields.cardType.value);
-                if (!empty(subscriptionID)) {
-                    newCreditCard.setCreditCardToken(subscriptionID);
-                    if (!empty(payInstrument) && empty(payInstrument.getCreditCardToken())) {
-                        payInstrument.setCreditCardToken(subscriptionID);
-                    }
+                newCreditCard.setCreditCardType(CardHelper.getCardType(session.forms.billing.creditCardFields.cardType.value));
+                newCreditCard.setCreditCardToken(subscriptionID);
+                newCreditCard.custom.isCSToken = true;
+                if (!empty(payInstrument) && empty(payInstrument.getCreditCardToken())) {
+                    payInstrument.setCreditCardToken(subscriptionID);
                 }
-            }
-        });
+            });
+        }
     }
     return true;
 }
@@ -338,7 +332,7 @@ function saveCreditCard() {
  */
 // eslint-disable-next-line
 function createSubscriptionMyAccount(args) {
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     var cardObject = CardHelper.CreateCybersourcePaymentCardObject('paymentinstruments');
     if (cardObject.success && cardObject.card !== null) {
         var billToResult = CommonHelper.CreateCyberSourceBillToObject_UserData('paymentinstruments');
@@ -346,7 +340,7 @@ function createSubscriptionMyAccount(args) {
             // var Site = require('dw/system/Site');
             var purchaseTotalsResult = CommonHelper.CreateCyberSourcePurchaseTotalsObject_UserData(Site.getCurrent().getDefaultCurrency(), '0');
             if (purchaseTotalsResult.success && purchaseTotalsResult.purchaseTotals !== null) {
-                var SubscriptionFacade = require('~/cartridge/scripts/facade/SubscriptionFacade');
+                var SubscriptionFacade = require('*/cartridge/scripts/facade/SubscriptionFacade');
                 var subscriptionResult = SubscriptionFacade.CreateSubscription(billToResult.billTo, cardObject.card, purchaseTotalsResult.purchaseTotals);
                 if (subscriptionResult.success && subscriptionResult.serviceResponse !== null) {
                     cardObject = null;// null  the card object CyberSourcePaymentCard
@@ -376,7 +370,7 @@ function deleteSubscriptionAccount(subscriptionID) {
     if (empty(subscriptionID)) {
         return { ok: true };
     }
-    var SubscriptionFacade = require('~/cartridge/scripts/facade/SubscriptionFacade');
+    var SubscriptionFacade = require('*/cartridge/scripts/facade/SubscriptionFacade');
     var subscriptionResult = SubscriptionFacade.DeleteSubscription(subscriptionID);
     if (subscriptionResult.success && subscriptionResult.serviceResponse !== null) {
         // eslint-disable-next-line

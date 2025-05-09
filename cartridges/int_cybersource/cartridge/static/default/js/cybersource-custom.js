@@ -1,3 +1,4 @@
+/* eslint-disable */
 $(document).ready(function () {
 	
 	$("#generic-form-submit").on('submit',function(e){
@@ -21,7 +22,9 @@ $(document).ready(function () {
 // For FingerPrint Unit testing 
 	if($("body").hasClass("cyb_testfingerprintRedirect"))
 	{
+		var DOMPurify = require('dompurify');
 		var url_loc = document.getElementById("URl_redirect").value;
+		url_loc = DOMPurify.sanitize(url_loc)
 		setTimeout(function(){location.href=url_loc} , 1000); 
 	}
 	
@@ -58,8 +61,9 @@ $(document).ready(function () {
 	if($("div").hasClass("SecureAcceptance_IFRAME"))
 	{	
 		var url_loc = document.getElementById("sa_iframeURL").value;
-		$(".SecureAcceptance_IFRAME").append('<iframe src='+url_loc+'  name="hss_iframe"  width="78%" height="630px" scrolling="no" />');
-		
+		if(url_loc){
+			$(".SecureAcceptance_IFRAME").append('<iframe src='+url_loc+'  name="hss_iframe"  width="78%" height="630px" scrolling="no" />');
+		}
 	}	
 	// For Secure Acceptance Iframe 
 	if($("body").hasClass("sa_iframe_request_form"))
@@ -118,6 +122,8 @@ $(document).ready(function () {
 		        	//Append a parameter to URL when PayPal Credit is used
 		        	CREATE_URL = CREATE_URL + "?isPayPalCredit=true";
 		        }
+				var DOMPurify = require('dompurify');
+				CREATE_URL = DOMPurify.sanitize(CREATE_URL);
 		        return paypal.request.post(CREATE_URL)
 		            .then(function(res) {
 		            	requestId=res.requestID;

@@ -1,7 +1,54 @@
 ## <ins>Release History
 
-**Version 22.1.3 (December 30, 2022)**
-•	We have upgraded the cartridge to support SFRA v6.2.
+**Version 25.1.0 (April, 2025)**
+• Added Message-Level Encryption (MLE) feature.
+• Added support for JKS keystore type for P12 authentication.
+• Configuration changes to support both MLE and P12 authentication.
+
+**Version 24.1.3 (February, 2025)**
+Enhancement: 
+•	Implemented support for multiple p12 files in p12 authentication.
+•	Upgraded Microform from v0.11 to v2. 
+•	Replaced ~ with * in require statements. 
+ 
+Bug Fixes: 
+•	Resolved the re-calculation issue of the basket when handling 478 scenarios.
+•	Added check for subscription id in TMS for SA_Redirect and SA_Iframe payment methods
+•	Added a check for DDC url before form submission.
+
+**Version 24.1.2 (December, 2024)**
+•	Upgraded the cartridge to support jQuery v3.7.1.
+•	Addresses security findings.
+•	Bug Fix: Removed security code input field from bank transfer payment methods when CsSAType is set to SA_FLEX. 
+•	Changed the authentication mechanism for the SOAP Toolkit to p12 authentication. 
+
+**Version 24.1.1 (July, 2024)**
+•	Upgraded the cartridge to support SFRA v7.0.
+•	Fixed card duplication in tokenization flow.
+•	Fixed Checkmarx issues.
+
+**Version 24.1.0 (March, 2024)**
+•	Implemented Direct API for Payer Authentication with Payer Auth Setup and Device Data Collection.
+•	We have included the 3DS browser mandatory fields.
+•	Implemented SCA and handling 478 reason code.
+•   Implemented subscription creation in authorization call.
+
+**Version 23.1.2 (November, 2023)**
+•	We have updated Flex microform from v0.11.0 to v0.11.
+•	We have updated API header in Http Signature Authentication.
+•	Bug fix for release 23.1.1 
+
+**Version 23.1.1 (July, 2023)**
+•	We have upgraded Flex microform from v0.4.0 to v0.11.0.
+
+**Version 23.1.0 (April 19, 2023)**
+⦁	Implemented Sale for Credit Card, Google Pay, Visa Checkout and Apple Pay
+⦁	We have extended the fix for other address fields in PayPal where non-english characters were not returned in the Cybersource response.
+⦁	Fixed incorrect unit product price in line items in Business center.
+
+
+**Version 22.1.3 (February 10, 2023)**
+•	We have upgraded the cartridge to support SFRA v6.3.
 •	We have mapped requestID to transactionID in Klarna payment method.
 •	We have added PayPal Pay Later message in the PayPal widget. 
 
@@ -16,7 +63,6 @@
 
 **Version 22.1.0 (May 15, 2022)**
 •	We have added paymentFlowMode configuration for Klarna payment.
-•	We have added support for SCA changes for Irish processor.
 •	We have updated the payment method Id for PayPal Credit to support PayPal payment for Salesforce Order Management.  
 •	We have added Transaction Type and Transaction Id for PayPal payment to support PayPal payment for Salesforce Order Management.
 •	We have fixed a Decision Manager issue for Visa Click to Pay. 

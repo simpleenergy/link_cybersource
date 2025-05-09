@@ -5,7 +5,7 @@
 var Logger = require('dw/system/Logger').getLogger('Cybersource');
 var Site = require('dw/system/Site');
 var StringUtils = require('dw/util/StringUtils');
-var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
+var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
 
 /**
 * Get request locale in format en-US basically replace _ with -
@@ -74,7 +74,7 @@ function CreateCybersourcePurchaseTotalsObject(Basket) {
         Logger.error('Please provide a Basket!');
         return { error: true };
     }
-    var PurchaseTotalsObject = require('~/cartridge/scripts/cybersource/CybersourcePurchaseTotalsObject');
+    var PurchaseTotalsObject = require('*/cartridge/scripts/cybersource/CybersourcePurchaseTotalsObject');
     var purchaseObject = new PurchaseTotalsObject();
     var Money = require('dw/value/Money');
     var amount = new Money(0, basket.currencyCode);
@@ -95,7 +95,7 @@ function CreateCybersourcePurchaseTotalsObject(Basket) {
     }
     purchaseObject.setCurrency(amount.currencyCode);
     // set the discount amount for Klarna
-    setKlarnaDiscountAmount(processor, purchaseObject, basket, locale);
+    //setKlarnaDiscountAmount(processor, purchaseObject, basket, locale);
     purchaseObject.setGrandTotalAmount(StringUtils.formatNumber(amount.value, '000000.00', locale));
 
     return { success: true, purchaseTotals: purchaseObject };
@@ -115,7 +115,7 @@ function GetIPAddress() {
  */
 
 function CreateCyberSourceBillToObject(Basket, ReadFromBasket) {
-    var BillToObject = require('~/cartridge/scripts/cybersource/CybersourceBillToObject');
+    var BillToObject = require('*/cartridge/scripts/cybersource/CybersourceBillToObject');
     var billToObject = new BillToObject();
     var paymentInstruments = Basket.getPaymentInstruments();
     var language = GetRequestLocale();
@@ -274,7 +274,7 @@ function CreateCyberSourceBillToObjectUserData(formType) {
             ipAddress = GetIPAddress();
             break;
     }
-    var BillToObject = require('~/cartridge/scripts/cybersource/CybersourceBillToObject');
+    var BillToObject = require('*/cartridge/scripts/cybersource/CybersourceBillToObject');
     var billToObject = new BillToObject();
     billToObject.setTitle(title);
     billToObject.setFirstName(firstName);
@@ -374,10 +374,10 @@ function CreateCybersourceItemObject(Basket) {
     var count = 1;
     while (lineItems.hasNext()) {
         var lineItem = lineItems.next();
-        var ItemObject = require('~/cartridge/scripts/cybersource/CybersourceItemObject');
+        var ItemObject = require('*/cartridge/scripts/cybersource/CybersourceItemObject');
         var itemObject = new ItemObject();
         if (lineItem instanceof dw.order.ProductLineItem) {
-            itemObject.setUnitPrice(StringUtils.formatNumber(lineItem.proratedPrice.value, '000000.00', locale));
+            itemObject.setUnitPrice(StringUtils.formatNumber(lineItem.basePrice.value, '000000.00', locale));
             itemObject.setQuantity(lineItem.quantityValue);
             if (discountLineItemHelpers.isDiscountProductId(lineItem.productID)) {
                 itemObject.setProductCode('coupon');
@@ -389,6 +389,12 @@ function CreateCybersourceItemObject(Basket) {
             itemObject.setProductSKU(lineItem.productID);
             itemObject.setTaxAmount(StringUtils.formatNumber(lineItem.adjustedTax.value, '000000.00', locale));
             setTotalAmount(processor, itemObject, lineItem.adjustedGrossPrice.value, locale);
+
+            if (lineItem.lineItemCtnr.priceAdjustments.length > 0 || lineItem.proratedPriceAdjustmentPrices.length > 0){
+                itemObject.unitPrice = StringUtils.formatNumber(lineItem.proratedPrice.value/lineItem.quantityValue, '000000.00', locale);
+                setTotalAmount(processor, itemObject, lineItem.proratedPrice.value, locale);
+            }
+
             itemObject.setId(count);
         } else if (lineItem instanceof dw.order.GiftCertificateLineItem) {
             itemObject.setUnitPrice(StringUtils.formatNumber(lineItem.grossPrice.value, '000000.00', locale));
@@ -419,11 +425,21 @@ function CreateCybersourceItemObject(Basket) {
             itemObject.setTaxAmount(StringUtils.formatNumber(lineItem.adjustedTax.value, '000000.00', locale));
             setTotalAmount(processor, itemObject, lineItem.adjustedGrossPrice.value, locale);
             itemObject.setId(count);
+        } else if (lineItem instanceof dw.order.PriceAdjustment) {
+            itemObject.setUnitPrice(StringUtils.formatNumber(lineItem.basePrice.value < 0 ? 0 : lineItem.basePrice.value, '000000.00', locale));
+            itemObject.setQuantity(lineItem.quantity);
+            itemObject.setProductCode('PRICE_ADJUSTMENT');
+            itemObject.setProductName('PRICE_ADJUSTMENT');
+            itemObject.setProductSKU('PRICE_ADJUSTMENT');
+            itemObject.setTaxAmount(StringUtils.formatNumber(lineItem.tax.value, '000000.00', locale));
+            setTotalAmount(processor, itemObject, lineItem.basePrice.value < 0 ? 0 : lineItem.basePrice.value, locale);
+            itemObject.setId(count);
+        } else {
+            continue;
         }
-        if (!(lineItem instanceof dw.order.PriceAdjustment)) {
-            count += 1;
-            itemObjects.add(itemObject);
-        }
+
+        count += 1;
+        itemObjects.add(itemObject);
     }
 
     return { success: true, items: itemObjects };
@@ -443,6 +459,18 @@ function setKlarnaTaxAmount(itemObject, taxvalue, locale) {
     }
 }
 
+function setKlarnaTotalAmount(itemObject, totalAmount, taxvalue, locale) {
+    /* set the total amount based on tax policy */
+     if (dw.order.TaxMgr.taxationPolicy === dw.order.TaxMgr.TAX_POLICY_NET) {
+        // set totalamount for net taxation policy
+        itemObject.setTotalAmount(StringUtils.formatNumber(totalAmount+taxvalue, '000000.00', locale));
+    } else {
+        // set totalamount for gross taxation policy
+        itemObject.setTotalAmount(StringUtils.formatNumber(totalAmount, '000000.00', locale));
+    }
+
+}
+
 /**
  * Set Klarna item object by passing basket as input
  */
@@ -459,7 +487,7 @@ function CreateKlarnaItemObject(Basket) {
     while (lineItems.hasNext()) {
         // set the different items into item level object
         var lineItem = lineItems.next();
-        var ItemObject = require('~/cartridge/scripts/cybersource/CybersourceItemObject');
+        var ItemObject = require('*/cartridge/scripts/cybersource/CybersourceItemObject');
         var itemObject = new ItemObject();
         if (lineItem instanceof dw.order.ProductLineItem) {
             // set product line item
@@ -470,6 +498,12 @@ function CreateKlarnaItemObject(Basket) {
             itemObject.setProductSKU(lineItem.productID);
             setKlarnaTaxAmount(itemObject, lineItem.tax.value, locale);
             setTotalAmount(processor, itemObject, lineItem.grossPrice.value, locale);
+            
+            if (lineItem.lineItemCtnr.priceAdjustments.length > 0 || lineItem.proratedPriceAdjustmentPrices.length > 0){
+                itemObject.unitPrice = StringUtils.formatNumber(lineItem.proratedPrice.value/lineItem.quantityValue, '000000.00', locale);;
+                setKlarnaTotalAmount(itemObject, lineItem.proratedPrice.value, lineItem.tax.value, locale);
+            }
+
             itemObject.setId(count);
         } else if (lineItem instanceof dw.order.ShippingLineItem) {
             // set shipping line item
@@ -491,11 +525,21 @@ function CreateKlarnaItemObject(Basket) {
             setKlarnaTaxAmount(itemObject, lineItem.tax.value, locale);
             setTotalAmount(processor, itemObject, lineItem.grossPrice.value, locale);
             itemObject.setId(count);
+        } else if (lineItem instanceof dw.order.PriceAdjustment) {
+            itemObject.setUnitPrice(StringUtils.formatNumber(lineItem.basePrice.value < 0 ? 0 : lineItem.basePrice.value, '000000.00', locale));
+            itemObject.setQuantity(lineItem.quantity);
+            itemObject.setProductCode('PRICE_ADJUSTMENT');
+            itemObject.setProductName('PRICE_ADJUSTMENT');
+            itemObject.setProductSKU('PRICE_ADJUSTMENT');
+            setKlarnaTaxAmount(itemObject, lineItem.tax.value, locale);
+            setTotalAmount(processor, itemObject, lineItem.basePrice.value < 0 ? 0 : lineItem.basePrice.value, locale);
+            itemObject.setId(count);
+        } else {
+            continue;
         }
-        if (!(lineItem instanceof dw.order.PriceAdjustment)) {
-            count += 1;
-            itemObjects.add(itemObject);
-        }
+
+        count += 1;
+        itemObjects.add(itemObject);
     }
 
     return { success: true, items: itemObjects };
@@ -510,7 +554,7 @@ function CreateKlarnaItemObject(Basket) {
 function CreateCyberSourcePurchaseTotalsObjectUserData(Currency, Amount) {
     var currency = Currency;
     var locale = GetRequestLocale();
-    var PurchaseTotalsObject = require('~/cartridge/scripts/cybersource/CybersourcePurchaseTotalsObject');
+    var PurchaseTotalsObject = require('*/cartridge/scripts/cybersource/CybersourcePurchaseTotalsObject');
     var purchaseObject = new PurchaseTotalsObject();
     if (empty(currency)) { currency = Site.getCurrent().getDefaultCurrency(); }
 
@@ -534,7 +578,7 @@ function CreateCyberSourcePurchaseTotalsObjectUserData(Currency, Amount) {
  */
 
 function CreateCybersourceShipFromObject() {
-    var ShipFromObject = require('~/cartridge/scripts/cybersource/CybersourceShipFromObject');
+    var ShipFromObject = require('*/cartridge/scripts/cybersource/CybersourceShipFromObject');
     var shipFrom = new ShipFromObject();
 
     shipFrom.setCity(Site.getCurrent().getCustomPreferenceValue('CsShipFromCity'));
@@ -553,7 +597,7 @@ function CreateCybersourceShipFromObject() {
 function CreateCybersourceShipToObject(Basket) {
     var basket = Basket;
 
-    var ShipToObject = require('~/cartridge/scripts/cybersource/CybersourceShipToObject');
+    var ShipToObject = require('*/cartridge/scripts/cybersource/CybersourceShipToObject');
     var shipToObject = new ShipToObject();
     var shippingAddress = basket.defaultShipment.shippingAddress;
     var shippingMethod = basket.defaultShipment.shippingMethod;
@@ -1006,7 +1050,7 @@ function calculateNonGiftCertificateAmountPayPal(lineItemCtnr) {
 
 function calculatePurchaseTotal(lineItemCtnr, paypal) {
     var locale = GetRequestLocale();
-    var PurchaseTotalsObject = require('~/cartridge/scripts/cybersource/CybersourcePurchaseTotalsObject');
+    var PurchaseTotalsObject = require('*/cartridge/scripts/cybersource/CybersourcePurchaseTotalsObject');
     var purchaseObject = new PurchaseTotalsObject();
     // var shippingAmount;
     purchaseObject.setCurrency(lineItemCtnr.currencyCode);
@@ -1162,11 +1206,16 @@ function GetSubscriptionToken(cardUUID, CustomerObj) {
  * @param secretKey : secretKey of the payment method defined in cybersource.
  */
 
-function signedDataUsingHMAC256(dataToSign, secretKey) {
+function signedDataUsingHMAC256(dataToSign, secretKey, paymentType) {
     var signature;
+    var KeyRef = require('dw/crypto/KeyRef');
     var mac = new dw.crypto.Mac(dw.crypto.Mac.HMAC_SHA_256);
-
-    if (!empty(dataToSign) && !empty(secretKey)) {
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
+    var CybersourceHelper = libCybersource.getCybersourceHelper(); 
+    if(paymentType === 'KLI'){
+        var privateKey = new KeyRef(CybersourceHelper.getklarnaPrivateKeyAlias());
+        signature = dw.crypto.Encoding.toBase64(mac.digest(dataToSign, privateKey));
+    }else{
         signature = dw.crypto.Encoding.toBase64(mac.digest(dataToSign, new dw.util.Bytes(secretKey, 'UTF-8')));
     }
     return signature;
@@ -1219,7 +1268,7 @@ function getOrderLevelAdjustedLineItemPrice(lineItem) {
 */
 function getItemObject(typeofService, basket) {
     var Money = require('dw/value/Money');
-    var ItemObject = require('~/cartridge/scripts/cybersource/CybersourceItemObject');
+    var ItemObject = require('*/cartridge/scripts/cybersource/CybersourceItemObject');
     var lineItems = basket.allLineItems.iterator();
     var itemObjects = [];
     var count = 1;
@@ -1291,9 +1340,9 @@ function getItemObject(typeofService, basket) {
                 // eslint-disable-next-line
                 continue;
             } else {
-                itemObject.setUnitPrice(StringUtils.formatNumber(Math.abs(lineItem.adjustedPrice.value), '#.00', locale));
+                itemObject.setUnitPrice(StringUtils.formatNumber(Math.abs(lineItem.adjustedPrice.value), '0.00', locale));
                 itemObject.setQuantity(1);
-                itemObject.setProductCode(lineItem.ID);
+                itemObject.setProductCode('shipping_and_handling');
                 itemObject.setProductName(lineItem.ID);
                 itemObject.setProductSKU(lineItem.ID);
 
@@ -1309,11 +1358,20 @@ function getItemObject(typeofService, basket) {
         } else if (lineItem instanceof dw.order.ProductShippingLineItem) {
             // eslint-disable-next-line
             continue;
+        } else if (lineItem instanceof dw.order.PriceAdjustment) {
+            itemObject.setUnitPrice(StringUtils.formatNumber(Math.abs(lineItem.basePrice.value < 0 ? 0 : lineItem.basePrice.value), '0.00', locale));
+            itemObject.setQuantity(lineItem.quantity);
+            itemObject.setProductCode('PRICE_ADJUSTMENT');
+            itemObject.setProductName('PRICE_ADJUSTMENT');
+            itemObject.setProductSKU('PRICE_ADJUSTMENT');
+            itemObject.setTaxAmount(StringUtils.formatNumber(Math.abs(lineItem.tax.value), '#.00', locale));
+            itemObject.setId(count);
+        } else {
+            continue;
         }
-        if (!(lineItem instanceof dw.order.PriceAdjustment) && lineItem.adjustedPrice.value > 0) {
-            count += 1;
-            itemObjects.push(itemObject);
-        }
+
+        count += 1;
+        itemObjects.push(itemObject);
     }
     return itemObjects;
 }
@@ -1466,13 +1524,12 @@ function CheckStatusServiceRequest(order) {
     var PaymentInstrument = require('dw/order/PaymentInstrument');
     var collections = require('*/cartridge/scripts/util/collections');
     collections.forEach(Order.paymentInstruments, function (paymentInstrument) {
-        // for each(var paymentInstrument in Order.paymentInstruments){
         if (!paymentInstrument.paymentMethod.equals(PaymentInstrument.METHOD_GIFT_CERTIFICATE)) {
             paymentType = paymentInstrument.paymentTransaction.custom.apPaymentType;
         }
     });
-    var commonFacade = require('~/cartridge/scripts/facade/CommonFacade');
-    var PaymentInstrumentUtils = require('~/cartridge/scripts/utils/PaymentInstrumentUtils');
+    var commonFacade = require('*/cartridge/scripts/facade/CommonFacade');
+    var PaymentInstrumentUtils = require('*/cartridge/scripts/utils/PaymentInstrumentUtils');
 
     var response = commonFacade.CheckPaymentStatusRequest(Order);
     if (!empty(response)) {
@@ -1673,6 +1730,65 @@ function getPaymentClass(paymentInstrument) {
     return paymentClass;
 }
 
+function createEncodeObject(result){
+    var encodedObj = {};
+    if (!empty(result.checkStatusResponse.billTo.street1)) {
+        encodedObj.billTo_street1 = result.checkStatusResponse.billTo.street1;
+    }
+    if (!empty(result.checkStatusResponse.billTo.street2)) {
+        encodedObj.billTo_street2 = result.checkStatusResponse.billTo.street2;
+    }
+    if (!empty(result.checkStatusResponse.billTo.city)) {
+        encodedObj.billTo_city = result.checkStatusResponse.billTo.city;
+    }
+    if (!empty(result.checkStatusResponse.billTo.state)) {
+        encodedObj.billTo_state = result.checkStatusResponse.billTo.state;
+    }
+    if (!empty(result.checkStatusResponse.shipTo.street1)) {
+        encodedObj.shipTo_street1 = result.checkStatusResponse.shipTo.street1;
+    }
+    if (!empty(result.checkStatusResponse.shipTo.street2)) {
+        encodedObj.shipTo_street2 = result.checkStatusResponse.shipTo.street2;
+    }
+    if (!empty(result.checkStatusResponse.shipTo.city)) {
+        encodedObj.shipTo_city = result.checkStatusResponse.shipTo.city;
+    }
+    if (!empty(result.checkStatusResponse.shipTo.state)) {
+        encodedObj.shipTo_state = result.checkStatusResponse.shipTo.state;
+    }
+
+    return encodedObj;
+}
+
+function updatePaypalAddressFields(result, translatedObject) {
+    if (!empty(translatedObject.billTo_street1)) {
+        result.checkStatusResponse.billTo.street1 = translatedObject.billTo_street1;
+    }
+    if (!empty(translatedObject.billTo_street2)) {
+        result.checkStatusResponse.billTo.street2 = translatedObject.billTo_street2;
+    }
+    if (!empty(translatedObject.billTo_city)) {
+        result.checkStatusResponse.billTo.city = translatedObject.billTo_city;
+    }
+    if (!empty(translatedObject.billTo_state)) {
+        result.checkStatusResponse.billTo.state = translatedObject.billTo_state;
+    }
+    if (!empty(translatedObject.shipTo_street1)) {
+        result.checkStatusResponse.shipTo.street1 = translatedObject.shipTo_street1;
+    }
+    if (!empty(translatedObject.shipTo_street2)) {
+        result.checkStatusResponse.shipTo.street2 = translatedObject.shipTo_street2;
+    }
+    if (!empty(translatedObject.shipTo_city)) {
+        result.checkStatusResponse.shipTo.city = translatedObject.shipTo_city;
+    }
+    if (!empty(translatedObject.shipTo_state)) { 
+        result.checkStatusResponse.shipTo.state = translatedObject.shipTo_state;
+    }
+
+    return result;
+}
+
 function decodeObj(encodedObj) {
     var attrs = Object.keys(encodedObj);
     var decodedObj = {};
@@ -1744,5 +1860,7 @@ module.exports = {
     ValidatePayPalInstrument: validatePayPalInstrument,
     getDeviceType: getDeviceType,
     GetPaymentClass: getPaymentClass,
+    createEncodeObject: createEncodeObject,
+    updatePaypalAddressFields: updatePaypalAddressFields,
     decodeObj: decodeObj
 };
