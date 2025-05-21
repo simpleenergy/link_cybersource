@@ -17,7 +17,7 @@ var csrfProtection = require('*/cartridge/scripts/middleware/csrf');
  * @returns {*} obj
  */
 function failOrder(args) {
-    var Cybersource = require('~/cartridge/scripts/Cybersource');
+    var Cybersource = require('*/cartridge/scripts/Cybersource');
     var orderResult = Cybersource.GetOrder(args.Order);
     if (orderResult.error) {
         // eslint-disable-next-line
@@ -207,6 +207,9 @@ server.use('Submit', csrfProtection.generateToken, function (req, res, next) {
                 return next();
             } if (providerResult.cancelfail) {
                 var ReasonCode = request.httpParameterMap.SecureAcceptanceError.stringValue;
+                if (!ReasonCode) {
+                    ReasonCode = request.httpParameterMap.reason_code.stringValue;
+                }
                 res.redirect(URLUtils.https('Checkout-Begin', 'stage', 'placeOrder', 'SecureAcceptanceError', ReasonCode));
                 return next();
             } if (providerResult.carterror) {
@@ -221,8 +224,12 @@ server.use('Submit', csrfProtection.generateToken, function (req, res, next) {
                 res.redirect(providerResult.location);
                 return next();
             }
-        } else {
-            // do nothing
+            if (providerResult.sca) {
+                session.privacy.paSetup = true;
+                session.privacy.orderId = order.orderNo;
+                res.redirect(URLUtils.url('CheckoutServices-PlaceOrder'));
+                return next();
+            }
         }
     } else if (!empty(paymentInstrument) && paymentInstrument.paymentMethod === 'DW_APPLE_PAY') {
         submitApplePayOrder(order, req, res, next);

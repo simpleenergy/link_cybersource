@@ -1,8 +1,8 @@
 'use strict';
 
 var Transaction = require('dw/system/Transaction');
-var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
-var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
+var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
+var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
 /**
  * Update the order payment instrument when card capture response arrived.
  * @param {Object} paymentInstrmt paymentInstrmt
@@ -387,7 +387,7 @@ function updatePaymentInstumenSACard(paymentInstrument, expiryDateString, masked
     /* eslint-disable */
     if (empty(paymentInstrument.getCreditCardType()) || empty(paymentInstrument.getCreditCardExpirationMonth())
         || empty(paymentInstrument.getCreditCardNumber()) || empty(paymentInstrument.getCreditCardHolder())) {
-            /* eslint-enable */
+        /* eslint-enable */
         Transaction.wrap(function () {
             paymentInstrument.setCreditCardType(cardtype);
             if (dateFieldsArr.length === 2) {
@@ -425,7 +425,7 @@ function MobilePaymentOrderUpdate(order, serviceResponse) {
     UpdateMobilePaymentTransactionCardAuthorize(CardHelper.getNonGCPaymemtInstument(order), serviceResponse);
     var OrderMgr = require('dw/order/OrderMgr');
     var Status = require('dw/system/Status');
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
     if (serviceResponse.ServiceResponse.serviceResponse.StandardizedAddress && (serviceResponse.ServiceResponse.serviceResponse.ReasonCode === '100' || serviceResponse.ServiceResponse.serviceResponse.ReasonCode === '480')) {
         CommonHelper.UpdateOrderShippingAddress(serviceResponse.ServiceResponse.serviceResponse.StandardizedAddress, order, false);
     }
@@ -459,18 +459,34 @@ function MobilePaymentOrderUpdate(order, serviceResponse) {
 function removeDuplicates(creditCardFields) {
     // eslint-disable-next-line
     var wallet = customer.getProfile().getWallet();
-    // eslint-disable-next-line
-    var paymentInstruments = wallet.getPaymentInstruments(dw.order.PaymentInstrument.METHOD_CREDIT_CARD).toArray().sort(function (a, b) {
-        return b.getCreationDate() - a.getCreationDate();
-    });
-    var ccNumber = creditCardFields.cardNumber;
+    
+    var ccNumber;
+    var fieldcardType;
+    var paymentInstruments;
+    if (!creditCardFields.CreditCardFields) {
+        ccNumber = creditCardFields.cardNumber;
+        fieldcardType = CardHelper.getCardType(creditCardFields.cardType);
+        // eslint-disable-next-line
+        paymentInstruments = wallet.getPaymentInstruments(dw.order.PaymentInstrument.METHOD_CREDIT_CARD).toArray().sort(function (a, b) {
+            return b.getCreationDate() - a.getCreationDate();
+        });
+    }
+    else {
+        ccNumber = creditCardFields.CreditCardFields.cardNumber;
+        fieldcardType = creditCardFields.CreditCardFields.cardType;
+        paymentInstruments = creditCardFields.PaymentInstruments;
+    }
     var isDuplicateCard = false;
     var oldCard;
 
     for (var i = 0; i < paymentInstruments.length; i += 1) {
         var card = paymentInstruments[i];
-        if (card.creditCardExpirationMonth === creditCardFields.expirationMonth && card.creditCardExpirationYear === creditCardFields.expirationYear
-            && card.creditCardType === creditCardFields.cardType && (card.getCreditCardNumber().indexOf(ccNumber.substring(ccNumber.length - 4)) > 0)) {
+        var PIcardType = card.creditCardType;
+        if((fieldcardType === 'Master Card' || fieldcardType === 'MasterCard') && (PIcardType === 'Master Card' || PIcardType === 'MasterCard')){
+            fieldcardType = 'MasterCard';
+            PIcardType = 'MasterCard';
+        }
+        if (PIcardType === fieldcardType && (card.getCreditCardNumber().indexOf(ccNumber.substring(ccNumber.length - 4)) > 0)) {
             isDuplicateCard = true;
             oldCard = card;
             break;
@@ -478,6 +494,8 @@ function removeDuplicates(creditCardFields) {
     }
     if (isDuplicateCard) {
         wallet.removePaymentInstrument(oldCard);
+        var Cybersource = require('*/cartridge/scripts/Cybersource');
+        Cybersource.DeleteSubscriptionAccount(oldCard.creditCardToken);
     }
 }
 

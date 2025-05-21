@@ -19,6 +19,8 @@ server.get('GetFingerprint', function (req, res, next) {
     var now = new Date().valueOf();
     var devicefingerprintTTL = Site.getCurrent().getCustomPreferenceValue('CsDeviceFingerprintTTL');
     var getDeviceFingerprint = false;
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
+    var CybersourceHelper = libCybersource.getCybersourceHelper();
 
     if (Site.getCurrent().getCustomPreferenceValue('CsDeviceFingerprintEnabled')) {
         if (empty(session.privacy.deviceFingerprintTime)) {
@@ -32,6 +34,7 @@ server.get('GetFingerprint', function (req, res, next) {
             }
         }
     }
+    sessionID = libCybersource.replaceCharsInSessionID(sessionID);
 
     var url = location + '/fp/tags.js?org_id=' + orgID + '&session_id=' + merchID + sessionID;
 

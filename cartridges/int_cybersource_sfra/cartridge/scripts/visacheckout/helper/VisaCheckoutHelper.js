@@ -4,7 +4,7 @@
 /* Script Modules */
 
 var server = require('server');
-var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
+var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
 
 /**
 * Create or update basket ShippingAddress Visa Checkout decrypted payment data from cybersource
@@ -228,9 +228,9 @@ function getButtonInitializeSettings(cart, requireDeliveryAddress) {
             } else {
                 vinitObject.paymentRequest.total = cart.merchandizeTotalNetPrice.value.toFixed(2);
             }
-            var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
+            var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
             // eslint-disable-next-line
-            var signature = CommonHelper.signedDataUsingHMAC256(cart.getUUID(), dw.system.Site.getCurrent().getCustomPreferenceValue('cybVisaSecretKey'));
+            var signature = CommonHelper.signedDataUsingHMAC256(cart.getUUID(), dw.system.Site.getCurrent().getCustomPreferenceValue('cybVisaSecretKey'), null);
             return { success: true, signature: signature, VInitFormattedString: convertObjectToString(vinitObject, '', 0) };
         }
         return { error: true, errorMsg: 'vinit string formation error : empty basket found' };
@@ -351,7 +351,7 @@ function getButtonDisplaySettings() {
     var CommonHelper = require(CybersourceConstants.CS_CORE_SCRIPT + 'helper/CommonHelper');
     var cart = BasketMgr.getCurrentBasket();
     var paymentAmount = CommonHelper.CalculateNonGiftCertificateAmount(cart);
-    var Countries = require('~/cartridge/scripts/utils/Countries');
+    var Countries = require('*/cartridge/scripts/utils/Countries');
     var countryCode = Countries.getCurrent({
         CurrentRequest: {
             // eslint-disable-next-line
@@ -418,12 +418,12 @@ function payerAuthValidation(lineItemCtnrObj, paymentInstrument) {
     var PAResponsePARes = request.httpParameterMap.PaRes.value;
     // var PAXID = request.httpParameterMap.PAXID.value;
     // eslint-disable-next-line
-    var transactionId = request.httpParameterMap.processorTransactionId.value != null ? request.httpParameterMap.processorTransactionId.value : '';
+    var transactionId = request.httpParameterMap.TransactionId.value != null ? request.httpParameterMap.TransactionId.value : '';
 
     var VisaCheckoutFacade = require(CybersourceConstants.CS_CORE_SCRIPT + 'visacheckout/facade/VisaCheckoutFacade');
     var result = VisaCheckoutFacade.PayerAuthValidationCCAuthRequest(lineItemCtnrObj, PAResponsePARes, paymentInstrument.paymentTransaction.amount, orderNo, transactionId);
     if (result.success) {
-        var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+        var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
         result = CardHelper.CardResponse(lineItemCtnrObj, paymentInstrument, result.serviceResponse);
         if (result.authorized) {
             return { submit: true };
@@ -448,7 +448,7 @@ function payerAuthValidation(lineItemCtnrObj, paymentInstrument) {
  * @returns {Object} result
  */
 function payerAuthEnroll(lineItemCtnrObj, paymentInstrument, orderNo) {
-    var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
     var VisaCheckoutFacade = require(CybersourceConstants.CS_CORE_SCRIPT + 'visacheckout/facade/VisaCheckoutFacade');
     var CybersourceHelper = libCybersource.getCybersourceHelper();
     var result; var
@@ -460,7 +460,7 @@ function payerAuthEnroll(lineItemCtnrObj, paymentInstrument, orderNo) {
     }
     serviceResponse = result.serviceResponse;
     if (CybersourceHelper.getProofXMLEnabled()) {
-        var PaymentInstrumentUtils = require('~/cartridge/scripts/utils/PaymentInstrumentUtils');
+        var PaymentInstrumentUtils = require('*/cartridge/scripts/utils/PaymentInstrumentUtils');
         PaymentInstrumentUtils.UpdatePaymentTransactionWithProofXML(paymentInstrument, serviceResponse.ProofXML);
     }
     /* eslint-disable */
@@ -469,11 +469,12 @@ function payerAuthEnroll(lineItemCtnrObj, paymentInstrument, orderNo) {
         session.privacy.PAReq = serviceResponse.PAReq;
         session.privacy.PAXID = serviceResponse.PAXID;
         session.privacy.order_id = orderNo;
+        session.privacy.stepUpUrl = serviceResponse.stepUpUrl;
         session.privacy.authenticationTransactionID = serviceResponse.authenticationTransactionID;
         return { payerauthentication: true, serviceResponse: serviceResponse };
     }
     /* eslint-enable */
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     return CardHelper.CardResponse(lineItemCtnrObj, paymentInstrument, serviceResponse);
 }
 

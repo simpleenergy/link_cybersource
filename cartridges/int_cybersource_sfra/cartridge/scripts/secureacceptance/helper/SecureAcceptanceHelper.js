@@ -2,8 +2,8 @@
 
 var Logger = require('dw/system/Logger');
 var Site = require('dw/system/Site');
-var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
-var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
+var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
+var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
 
 /**
  * Add or Update Token details in customer payment cards from order payment instrument card details
@@ -61,6 +61,7 @@ function AddOrUpdateToken(orderPaymentInstrument, CustomerObj) {
         }
         var Transaction = require('dw/system/Transaction');
         var status = Transaction.wrap(function () {
+        if (!empty(cardToken)) {
             // eslint-disable-next-line
             if (!empty(matchedPaymentInstrument)) {
                 wallet.removePaymentInstrument(matchedPaymentInstrument);
@@ -71,10 +72,9 @@ function AddOrUpdateToken(orderPaymentInstrument, CustomerObj) {
             paymentInstrument.setCreditCardNumber(cardNumber);
             paymentInstrument.setCreditCardExpirationMonth(cardMonth);
             paymentInstrument.setCreditCardExpirationYear(cardYear);
-            paymentInstrument.setCreditCardType(cardType);
-            // eslint-disable-next-line
-            if (!empty(cardToken)) {
-                paymentInstrument.setCreditCardToken(cardToken);
+            paymentInstrument.setCreditCardType(cardType);            
+            paymentInstrument.setCreditCardToken(cardToken);
+            paymentInstrument.custom.isCSToken = true;
             }
             // }
             return { success: true };
@@ -236,7 +236,7 @@ function buildDataFromResponse(httpParameterMap) {
 */
 function MasterCardAuthIndicatorRequest(signedFields, requestMap, subscriptionToken) {
     var signedFieldNames = signedFields;
-    var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
     var CybersourceHelper = libCybersource.getCybersourceHelper();
     var mastercardAuthIndicator = CybersourceHelper.getMasterCardAuthIndicator();
     var matchedCardType; var
@@ -443,8 +443,9 @@ function CreateRequestData(sitePreferenceData, paymentInstrument, LineItemCtnr, 
         var requestMap = new HashMap();
         var paymentMethod = paymentInstrument.paymentMethod;
         var CsSAType = Site.getCurrent().getCustomPreferenceValue('CsSAType').value;
-        var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+        var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
         var cardObject = CardHelper.CreateCybersourcePaymentCardObject('billing', subscriptionToken);
+        var CsTransactionType = Site.getCurrent().getCustomPreferenceValue('CsTransactionType').value;
         // eslint-disable-next-line
         session.privacy.order_id = lineItemCtnr.orderNo;
 
@@ -454,7 +455,7 @@ function CreateRequestData(sitePreferenceData, paymentInstrument, LineItemCtnr, 
             var ignoreCvn = false;
             var authIndicatorRes;
             var providerVal;
-            transactionType = 'authorization';
+            transactionType = CsTransactionType;
             switch (CsSAType) {
                 case CybersourceConstants.METHOD_SA_REDIRECT:
                     providerVal = 'saredirect';
@@ -466,7 +467,7 @@ function CreateRequestData(sitePreferenceData, paymentInstrument, LineItemCtnr, 
                     if (sitePreferenceData.CsSubscriptionTokenizationEnable === 'YES') {
                         // eslint-disable-next-line
                         if (!empty(subscriptionToken)) {
-                            transactionType = 'authorization';
+                            transactionType = CsTransactionType;
                             signedFieldNames += ',payment_token';
                             requestMap.put('payment_token', subscriptionToken);
                             signedFieldNames += ',allow_payment_token_update';
@@ -543,11 +544,11 @@ function CreateRequestData(sitePreferenceData, paymentInstrument, LineItemCtnr, 
                     requestMap.put('override_custom_receipt_page', dw.web.URLUtils.https('CYBSecureAcceptance-SilentPostResponse'));
                     break;
                 default:
-                    transactionType = 'authorization';
+                    transactionType = CsTransactionType;
                     break;
             }
         }
-        var CybersourceHelper = require('~/cartridge/scripts/cybersource/libCybersource').getCybersourceHelper();
+        var CybersourceHelper = require('*/cartridge/scripts/cybersource/libCybersource').getCybersourceHelper();
         signedFieldNames += ',partner_solution_id';
         requestMap.put('partner_solution_id', CybersourceHelper.getPartnerSolutionID());
         var result = CreateLineItemCtnrRequestData(lineItemCtnr, requestMap, paymentMethod, signedFieldNames, unsignedFieldNames);
@@ -717,7 +718,7 @@ function TestLineItemCtnrRequestData(billToObject, shipToObject, purchaseObject,
  */
 function GetPaymemtInstument(order) {
     if (order !== null) {
-        var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+        var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
         return CardHelper.getNonGCPaymemtInstument(order);
     }
 }
@@ -769,7 +770,7 @@ function validateSAMerchantPostRequest(httpParameterMap) {
         }
         // prepare signature and send match result
         var dataToSign = buildDataFromResponse(httpParameterMap);
-        var signature = CommonHelper.signedDataUsingHMAC256(dataToSign, result.secretkey);
+        var signature = CommonHelper.signedDataUsingHMAC256(dataToSign, result.secretkey, null);
         if (signature.toString() === httpParameterMap.signature.stringValue) {
             // signature got Authorize
             return true;
@@ -861,7 +862,7 @@ function saveSAMerchantPostRequest(httpParameterMap) {
 function HandleDecision(ReasonCode) {
     var serviceResponse = {};
     serviceResponse.ReasonCode = ReasonCode;
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     return CardHelper.HandleCardResponse(serviceResponse);
 }
 
@@ -873,7 +874,7 @@ function HandleDecision(ReasonCode) {
  * @returns {Object} obj
  */
 function AuthorizePayer(LineItemCtnrObj, paymentInstrument, orderNo) {
-    var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
     var CybersourceHelper = libCybersource.getCybersourceHelper();
     var result;
     // var PAReasonCode;
@@ -885,7 +886,7 @@ function AuthorizePayer(LineItemCtnrObj, paymentInstrument, orderNo) {
     var paymentMethod = paymentInstrument.getPaymentMethod();
     // eslint-disable-next-line
     if (!empty(CybersourceHelper.getPAMerchantID())) {
-        var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+        var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
         if ((paymentMethod.equals(CybersourceConstants.METHOD_CREDIT_CARD) && (CsSAType == null || CsSAType !== CybersourceConstants.METHOD_SA_FLEX)) || paymentMethod.equals(CybersourceConstants.METHOD_VISA_CHECKOUT) || paymentMethod.equals(CybersourceConstants.METHOD_GooglePay)) {
             result = CardHelper.PayerAuthEnable(paymentInstrument.creditCardType);
         } else if (CsSAType.equals(CybersourceConstants.METHOD_SA_FLEX)) {
@@ -900,15 +901,19 @@ function AuthorizePayer(LineItemCtnrObj, paymentInstrument, orderNo) {
 
     // eslint-disable-next-line
     if (paEnabled && empty(LineItemCtnrObj.getPaymentInstruments(CybersourceConstants.METHOD_VISA_CHECKOUT)) && empty(LineItemCtnrObj.getPaymentInstruments(CybersourceConstants.METHOD_GooglePay))) {
-        var CardFacade = require('~/cartridge/scripts/facade/CardFacade');
+        var CardFacade = require('*/cartridge/scripts/facade/CardFacade');
         // eslint-disable-next-line
         result = CardFacade.PayerAuthEnrollCheck(LineItemCtnrObj, paymentInstrument.paymentTransaction.amount, orderNo, session.forms.billing.creditCardFields);
+        serviceResponse = result.serviceResponse;
+        if(serviceResponse.ReasonCode === 478 && session.custom.enroll == true){
+            session.custom.enroll = false;
+            return {sca: true};
+        }
         if (result.error) {
             return result;
         }
-        serviceResponse = result.serviceResponse;
         if (CybersourceHelper.getProofXMLEnabled()) {
-            var PaymentInstrumentUtils = require('~/cartridge/scripts/utils/PaymentInstrumentUtils');
+            var PaymentInstrumentUtils = require('*/cartridge/scripts/utils/PaymentInstrumentUtils');
             PaymentInstrumentUtils.UpdatePaymentTransactionWithProofXML(paymentInstrument, serviceResponse.ProofXML);
         }
         /* eslint-disable */
@@ -925,6 +930,7 @@ function AuthorizePayer(LineItemCtnrObj, paymentInstrument, orderNo) {
             session.privacy.PAReq = serviceResponse.PAReq;
             session.privacy.PAXID = serviceResponse.PAXID;
             session.privacy.order_id = orderNo;
+            session.privacy.stepUpUrl = serviceResponse.stepUpUrl;
             session.privacy.authenticationTransactionID = serviceResponse.authenticationTransactionID;
             return { payerauthentication: true, serviceResponse: serviceResponse };
         }
@@ -948,14 +954,14 @@ function HookIn3DRequest(args) {
     var result; var
         serviceResponse;
     var ReadFromBasket = true;
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     // Service facade call for card authorization
     // eslint-disable-next-line
     if (!empty(args.Order.getPaymentInstruments(CybersourceConstants.METHOD_VISA_CHECKOUT))) {
         var VisaCheckoutFacade = require(CybersourceConstants.CS_CORE_SCRIPT + 'visacheckout/facade/VisaCheckoutFacade');
         result = VisaCheckoutFacade.CCAuthRequest(args.Order, args.orderNo, CommonHelper.getIPAddress());
     } else {
-        var CardFacade = require('~/cartridge/scripts/facade/CardFacade');
+        var CardFacade = require('*/cartridge/scripts/facade/CardFacade');
         var Resource = require('dw/web/Resource');
         // var ipAddress = CommonHelper.getIPAddress();
         var payerAuthEnable = CardHelper.PayerAuthEnable(args.paymentInstrument.creditCardType);
@@ -1025,16 +1031,20 @@ function AuthorizeCreditCard(args) {
         return { declined: true };
     }
     if (result.cardresponse) {
-        var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+        var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
         return CardHelper.CardResponse(result.order, paymentInstrument, result.serviceResponse);
     }
     if (result.payerauthentication) {
         // eslint-disable-next-line
         session.privacy.process3DRequestParent = true;
         var handle3DResponse = {
-            process3DRedirection: true
+            process3DRedirection: true,
+            jwt: result.serviceResponse.jwt
         };
         return handle3DResponse;
+    }
+    if(result.sca){
+        return {sca:true};
     }
     if (paymentInstrument.paymentMethod.equals(CybersourceConstants.METHOD_VISA_CHECKOUT) && !result.success) {
         return result;

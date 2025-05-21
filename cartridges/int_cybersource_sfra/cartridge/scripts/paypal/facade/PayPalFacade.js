@@ -3,14 +3,14 @@
 
 var Logger = dw.system.Logger.getLogger('Cybersource');
 var Site = require('dw/system/Site');
-var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
+var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
 
-var csReference = webreferences2.CyberSourceTransaction;
-var CSServices = require('~/cartridge/scripts/init/SoapServiceInit');
-var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
+var CSServices = require('*/cartridge/scripts/init/SoapServiceInit');
+var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
 
 var CybersourceHelper = libCybersource.getCybersourceHelper();
-// var CSServices = require('~/cartridge/scripts/init/SoapServiceInit');
+var csReference = new CybersourceHelper.getcsReference();
+
 /**
  * Capture all theinformation relate dto paypal payment method.
  * @param LineItemCtnrObj : dw.order.LineItemCtnr contains object of basket or order
@@ -19,17 +19,14 @@ function payPalSerivceInterface(request) {
     var serviceResponse = null;
     // setting response in response object
     try {
-        // var dwsvc = require('dw/svc');
         // Load the service configuration
         var service = CSServices.CyberSourceTransactionService;
 
         var paymentMethod = session.forms.billing.paymentMethod.value;
         // getting merchant id and key for specific payment method
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(paymentMethod);
         var requestWrapper = {};
-        request.merchantID = merchantCrdentials.merchantID;
+        request.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = request;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         // call the service based on input
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
@@ -49,15 +46,14 @@ function payPalSerivceInterface(request) {
         session.privacy.CybersourceFraudDecision = serviceResponse.decision;
     }
 
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
     CommonHelper.LogResponse(serviceResponse.merchantReferenceCode, serviceResponse.requestID, serviceResponse.requestToken, Number(serviceResponse.reasonCode), serviceResponse.decision);
 
     return serviceResponse;
 }
 
 function createBasicRequest(typeofService, request, lineItemCntr) {
-    var commonHelper = require('~/cartridge/scripts/helper/CommonHelper');
-    // var collections = require('*/cartridge/scripts/util/collections');
+    var commonHelper = require('*/cartridge/scripts/helper/CommonHelper');
     var purchase;
     var billTo;
     var shipTo;
@@ -70,7 +66,6 @@ function createBasicRequest(typeofService, request, lineItemCntr) {
     var items = [];
     if (!empty(itemList)) {
         itemList.forEach(function (item) {
-            // for each(var item in itemList){
             items.push(libCybersource.copyItemFrom(item));
         });
     }
@@ -137,7 +132,6 @@ function addBillingAgreementId(request, lineItemCntr) {
     // Iterate on All Payment Instruments and check if PayPal Credit Payment Method was used
     // eslint-disable-next-line
     collections.forEach(paymentInstruments, function (paymentInstrument) {
-        // for each(var paymentInstrument in paymentInstruments ){
         /*
          * Check if payment method used is PayPal Credit
          * If it is PayPal Credit then Billing Agreement Flag needs to be set as false
@@ -155,7 +149,7 @@ function addBillingAgreementId(request, lineItemCntr) {
     */
         if (!empty(customer.profile.custom.billingAgreementID)) {
             if (request.ap == null) {
-                var ap = new CybersourceHelper.csReference.AP();
+                var ap = new CybersourceHelper.getcsReference().AP();
                 ap.billingAgreementID = customer.profile.custom.billingAgreementID;
                 request.ap = ap;
             } else {
@@ -196,13 +190,13 @@ function addDecisionManager(request) {
 function checkStatusService(lineItemCntr, requestId) {
     // create request stub for check status service
     var request = new csReference.RequestMessage();
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
 
     request.merchantID = CybersourceHelper.getMerchantID();
     libCybersource.setClientData(request, lineItemCntr.UUID);
     request.apPaymentType = 'PPL';
 
-    var apCheckStatusService = new CybersourceHelper.csReference.APCheckStatusService();
+    var apCheckStatusService = new CybersourceHelper.getcsReference().APCheckStatusService();
     var isBillingAgreement = false;
     if (!addBillingAgreementId(request, lineItemCntr)) {
         apCheckStatusService.checkStatusRequestID = requestId;
@@ -214,12 +208,9 @@ function checkStatusService(lineItemCntr, requestId) {
     var result = {};
     result.checkStatusResponse = payPalSerivceInterface(request);
     result.isBillingAgreement = isBillingAgreement;
-    var translatedObject = CommonHelper.decodeObj({
-        street1: result.checkStatusResponse.shipTo.street1,
-        city: result.checkStatusResponse.shipTo.city
-        });
-    result.checkStatusResponse.shipTo.street1 = translatedObject.street1;
-    result.checkStatusResponse.shipTo.city = translatedObject.city;
+    var encodedObj = CommonHelper.createEncodeObject(result);
+    var translatedObject = CommonHelper.decodeObj(encodedObj);
+    result = CommonHelper.updatePaypalAddressFields(result, translatedObject);
     return result;
 }
 
@@ -235,13 +226,13 @@ function orderService(lineItemCntr, paymentInstrument) {
     libCybersource.setClientData(serviceRequest, lineItemCntr.orderNo);
     serviceRequest.apPaymentType = 'PPL';
 
-    var ap = new CybersourceHelper.csReference.AP();
+    var ap = new CybersourceHelper.getcsReference().AP();
     // Set the payerID
     ap.payerID = paymentInstrument.paymentTransaction.custom.payerID;
     serviceRequest.ap = ap;
     sessionRequestID = paymentInstrument.paymentTransaction.custom.requestId;
 
-    var apOrderService = new CybersourceHelper.csReference.APOrderService();
+    var apOrderService = new CybersourceHelper.getcsReference().APOrderService();
     // set the request ID
     apOrderService.sessionsRequestID = sessionRequestID;
     serviceRequest.apOrderService = apOrderService;
@@ -260,13 +251,13 @@ function authorizeService(lineItemCntr, paymentInstrument) {
     createBasicRequest('authorizeService', serviceRequest, lineItemCntr);    
     CybersourceHelper.apDecisionManagerService(paymentInstrument.paymentMethod, serviceRequest);
     if (serviceRequest.decisionManager.enabled && CybersourceHelper.getDigitalFingerprintEnabled()) {
-        libCybersource.setClientData(serviceRequest, lineItemCntr.orderNo, session.sessionID);
+        libCybersource.setClientData(serviceRequest, lineItemCntr.orderNo, libCybersource.replaceCharsInSessionID(session.sessionID));
     } else {
         libCybersource.setClientData(serviceRequest, lineItemCntr.orderNo);
     }
     addFundingSource(serviceRequest);
     serviceRequest.apPaymentType = 'PPL';
-    var apAuthService = new CybersourceHelper.csReference.APAuthService();
+    var apAuthService = new CybersourceHelper.getcsReference().APAuthService();
     // set the request ID
     apAuthService.orderRequestID = paymentInstrument.paymentTransaction.custom.orderRequestID;
     serviceRequest.apAuthService = apAuthService;
@@ -282,15 +273,14 @@ function authorizeService(lineItemCntr, paymentInstrument) {
 function saleService(lineItemCntr, paymentInstrument) {
     // create request stub for sale service
     var serviceRequest = new csReference.RequestMessage();
-    // var paymentTransaction = paymentInstrument.paymentTransaction;
     createBasicRequest('saleService', serviceRequest, lineItemCntr);
     addDecisionManager(serviceRequest);
     if (serviceRequest.decisionManager.enabled && CybersourceHelper.getDigitalFingerprintEnabled()) {
-        libCybersource.setClientData(serviceRequest, lineItemCntr.orderNo, session.sessionID);
+        libCybersource.setClientData(serviceRequest, lineItemCntr.orderNo, libCybersource.replaceCharsInSessionID(session.sessionID));
     } else {
         libCybersource.setClientData(serviceRequest, lineItemCntr.orderNo);
     }
-    var apSaleService = new CybersourceHelper.csReference.APSaleService();
+    var apSaleService = new CybersourceHelper.getcsReference().APSaleService();
     addFundingSource(serviceRequest);
     if (!addBillingAgreementId(serviceRequest, lineItemCntr)) {
         apSaleService.orderRequestID = paymentInstrument.paymentTransaction.custom.orderRequestID;
@@ -307,11 +297,8 @@ function saleService(lineItemCntr, paymentInstrument) {
      * param : Request stub ,order object and Payment type
 *************************************************************************** */
 function PayPalRefundService(requestID, merchantRefCode, paymentType, amount, currency) {
-    // var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
-    // var CybersourceHelper = libCybersource.getCybersourceHelper();
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
 
-    // var csReference = webreferences2.CyberSourceTransaction;
     var serviceRequest = new csReference.RequestMessage();
 
     var purchaseObject = CommonHelper.CreateCyberSourcePurchaseTotalsObject_UserData(currency, amount);
@@ -334,11 +321,9 @@ function PayPalRefundService(requestID, merchantRefCode, paymentType, amount, cu
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_PAYPAL);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         // var err = e;
@@ -363,11 +348,7 @@ function PayPalRefundService(requestID, merchantRefCode, paymentType, amount, cu
  * @param currency :
  */
 function PayPalReversalService(requestID, merchantRefCode, paymentType, purchaseTotal, currency) {
-    // var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
-    // var CybersourceHelper = libCybersource.getCybersourceHelper();
-
-    // var csReference = webreferences2.CyberSourceTransaction;
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
     var serviceRequest = new csReference.RequestMessage();
 
     var purchaseObject = CommonHelper.CreateCyberSourcePurchaseTotalsObject_UserData(currency, purchaseTotal);
@@ -389,11 +370,9 @@ function PayPalReversalService(requestID, merchantRefCode, paymentType, purchase
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_PAYPAL);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[PayPalFacade.js] Error in PayPalReversalService request ( {0} )', e.message);
@@ -418,11 +397,7 @@ function PayPalReversalService(requestID, merchantRefCode, paymentType, purchase
  */
 
 function PayPalCaptureService(requestID, merchantRefCode, paymentType, purchaseTotal, currency) {
-    // var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
-    // var CybersourceHelper = libCybersource.getCybersourceHelper();
-
-    // var csReference = webreferences2.CyberSourceTransaction;
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
     var serviceRequest = new csReference.RequestMessage();
 
     var purchaseObject = CommonHelper.CreateCyberSourcePurchaseTotalsObject_UserData(currency, purchaseTotal);
@@ -445,11 +420,9 @@ function PayPalCaptureService(requestID, merchantRefCode, paymentType, purchaseT
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_PAYPAL);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[PayPalFacade.js] Error in PayPalCaptureService request ( {0} )', e.message);
@@ -474,7 +447,7 @@ function billagreementService(requestId, orderRef) {
     serviceRequest.merchantID = CybersourceHelper.getMerchantID();
     libCybersource.setClientData(serviceRequest, orderRef);
     serviceRequest.apPaymentType = 'PPL';
-    var apBillingAgreementService = new CybersourceHelper.csReference.APBillingAgreementService();
+    var apBillingAgreementService = new CybersourceHelper.getcsReference().APBillingAgreementService();
     apBillingAgreementService.sessionsRequestID = requestId;
     serviceRequest.apBillingAgreementService = apBillingAgreementService;
     serviceRequest.apBillingAgreementService.run = true;

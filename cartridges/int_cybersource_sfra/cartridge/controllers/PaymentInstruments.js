@@ -11,6 +11,8 @@ var consentTracking = require('*/cartridge/scripts/middleware/consentTracking');
 
 var IsCartridgeEnabled = Site.getCurrent().getCustomPreferenceValue('IsCartridgeEnabled');
 
+var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
+
 server.extend(page);
 
 function verifyCard(card, form) {
@@ -106,7 +108,7 @@ function savePaymentInstrument(params) {
     var creditCardFields = params.CreditCardFields;
     paymentInstrument.setCreditCardHolder(creditCardFields.name);
     paymentInstrument.setCreditCardNumber(creditCardFields.cardNumber);
-    paymentInstrument.setCreditCardType(creditCardFields.cardType);
+    paymentInstrument.setCreditCardType(CardHelper.getCardType(creditCardFields.cardType));
     paymentInstrument.setCreditCardExpirationMonth(creditCardFields.expirationMonth);
     paymentInstrument.setCreditCardExpirationYear(creditCardFields.expirationYear);
 }
@@ -120,7 +122,7 @@ function cardSaveLimit(Profile) {
     // var Site = require('dw/system/Site');
     var Transaction = require('dw/system/Transaction');
     var Logger = require('dw/system/Logger');
-    var cyberSourceHelper = require('~/cartridge/scripts/cybersource/libCybersource').getCybersourceHelper();
+    var cyberSourceHelper = require('*/cartridge/scripts/cybersource/libCybersource').getCybersourceHelper();
 
     var LimitSavedCardRateEnabled = !empty(cyberSourceHelper.getLimitSavedCardRate()) ? cyberSourceHelper.getLimitSavedCardRate() : false;
 
@@ -216,11 +218,12 @@ if (IsCartridgeEnabled) {
         var dwOrderPaymentInstrument = require('dw/order/PaymentInstrument');
         var verifyDuplicates = false;
         var tokenizationResult = { subscriptionID: '', error: '' };
-        var PaymentInstrumentUtils = require('~/cartridge/scripts/utils/PaymentInstrumentUtils');
+        var PaymentInstrumentUtils = require('*/cartridge/scripts/utils/PaymentInstrumentUtils');
         var paymentForm = server.forms.getForm('creditCard');
         var result = getDetailsObject(paymentForm);
 
-        if (paymentForm.valid && !verifyCard(result, paymentForm)) {
+        var billingForm = server.forms.getForm('billing');
+        if (!empty(billingForm.creditCardFields.flexresponse.value)) {
             res.setViewData(result);
             this.on('route:BeforeComplete', function (req, res) { // eslint-disable-line no-shadow
                 var URLUtils = require('dw/web/URLUtils');
@@ -239,18 +242,18 @@ if (IsCartridgeEnabled) {
                     tokenizationResult = HookMgr.callHook('app.payment.processor.' + processor.ID.toLowerCase(), 'CreatePaymentToken', 'account');
                 }
 
-                PaymentInstrumentUtils.removeDuplicates(formInfo);
-
                 if (!tokenizationResult.error) {
                     var wallet = customer.getProfile().getWallet();
                     Transaction.begin();
-                    if (verifyDuplicates) {
-                        PaymentInstrumentUtils.removeDuplicates(formInfo);
-                    }
-                    var paymentInstrument = wallet.createPaymentInstrument(dwOrderPaymentInstrument.METHOD_CREDIT_CARD);
-                    savePaymentInstrument({ PaymentInstrument: paymentInstrument, CreditCardFields: formInfo });
 
                     if (!empty(tokenizationResult.subscriptionID)) {
+
+                        if (verifyDuplicates) {
+                            PaymentInstrumentUtils.removeDuplicates(formInfo);
+                        }
+                        var paymentInstrument = wallet.createPaymentInstrument(dwOrderPaymentInstrument.METHOD_CREDIT_CARD);
+                        savePaymentInstrument({ PaymentInstrument: paymentInstrument, CreditCardFields: formInfo });
+    
                         paymentInstrument.custom.isCSToken = true;
                         paymentInstrument.setCreditCardToken(tokenizationResult.subscriptionID);
                     }

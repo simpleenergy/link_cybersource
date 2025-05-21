@@ -2,9 +2,12 @@
 <isset name="isCartridgeEnabled" value="${dw.system.Site.getCurrent().getCustomPreferenceValue('IsCartridgeEnabled')}" scope="page" />
 <isset name="saStyleFlex" value="${CsSaType && isCartridgeEnabled && CsSaType == 'SA_FLEX' ? "hidden" : '' }" scope="page" />
 <isset name="saStyle" value="${CsSaType && isCartridgeEnabled && (CsSaType == 'SA_REDIRECT' || CsSaType == 'SA_IFRAME') ? "hidden" : '' }" scope="page" />
+<isset name="isTokenizationEnabled" value="${dw.system.Site.getCurrent().getCustomPreferenceValue('CsTokenizationEnable').value}" scope="page" />
 
 <isif condition="${CsSaType && isCartridgeEnabled && CsSaType == 'SA_FLEX'}">
-		<isinclude url="${URLUtils.url('CYBSecureAcceptance-CreateFlexToken')}"/>
+	<script src="${URLUtils.staticURL('/custom/lib/jquery/jquery-3.7.1.min.js')}" type="text/javascript"></script>
+    <script src="${URLUtils.staticURL('/custom/flexMicroform.js')}" type="text/javascript"></script>
+	<isinclude url="${URLUtils.url('CYBSecureAcceptance-CreateFlexToken')}"/>
 </isif>
 <!--- Hidden input for credit card type --->
 <input type="hidden" class="form-control" id="cardType"
@@ -77,7 +80,7 @@
     </div>
 </div>
 
-<div class="row" ${saStyle !=null && saStyle  ? saStyle : ''}>
+<div class="row" ${saStyle !=null && saStyle  ? saStyle : ''} ${saStyleFlex  !=null && saStyleFlex ? saStyleFlex : ''}>
     <div class="col-sm-6">
         <div class="form-group
             <isif condition=${creditFields.securityCode.mandatory === true}>required</isif>
@@ -139,7 +142,7 @@
 	
 	<div class="row">
 	    <div class="col">
-	        <isif condition="${pdict.customer.registeredUser}">
+	        <isif condition="${pdict.customer.registeredUser && isTokenizationEnabled.equals('YES')}">
 	            <div class="save-credit-card custom-control custom-checkbox ">
 	                <input type="checkbox" class="custom-control-input" id="saveCreditCard" name="${creditFields.saveCard.htmlName}" value="true" checked>
 	                <label class="custom-control-label" for="saveCreditCard">

@@ -84,7 +84,7 @@ base.paymentTabs = function () {
         formHelpers.clearPreviousErrors('.payment-form');
 
         if (paymentMethod) {
-            $('.dwfrm_billing_creditCardFields_cardNumber,.dwfrm_billing_creditCardFields_expirationMonth, .dwfrm_billing_creditCardFields_expirationYear, .dwfrm_billing_creditCardFields_securityCode, .form-group.cardNumber,.bankTransfer').hide();
+            $('.dwfrm_billing_creditCardFields_cardNumber,.dwfrm_billing_creditCardFields_expirationMonth, .dwfrm_billing_creditCardFields_expirationYear, .dwfrm_billing_creditCardFields_securityCode, .form-group.cardNumber, .form-group.securityCode, .bankTransfer').hide();
             $('#credit-card-content .user-payment-instruments.container').addClass('checkout-hidden');
             $('.credit-card-form').removeClass('checkout-hidden');
             $('.btn.btn-block.cancel-new-payment, .save-credit-card.custom-control.custom-checkbox ').hide();
@@ -96,18 +96,18 @@ base.paymentTabs = function () {
             $('.next-step-button .submit-payment').attr('id', 'showSubmitPayment');
         } else if (methodID === 'CREDIT_CARD') {
             if ($(this).data('sa-type') === 'SA_IFRAME' || $(this).data('sa-type') === 'SA_REDIRECT') {
-                $('.dwfrm_billing_creditCardFields_cardNumber,.dwfrm_billing_creditCardFields_expirationMonth, .dwfrm_billing_creditCardFields_expirationYear, .dwfrm_billing_creditCardFields_securityCode, .form-group.cardNumber,.bankTransfer').hide();
+                $('.dwfrm_billing_creditCardFields_cardNumber,.dwfrm_billing_creditCardFields_expirationMonth, .dwfrm_billing_creditCardFields_expirationYear, .dwfrm_billing_creditCardFields_securityCode, .form-group.cardNumber, .form-group.securityCode, .bankTransfer').hide();
             } else {
-                $('.dwfrm_billing_creditCardFields_cardNumber,.dwfrm_billing_creditCardFields_expirationMonth, .dwfrm_billing_creditCardFields_expirationYear, .dwfrm_billing_creditCardFields_securityCode, .form-group.cardNumber').show();
+                $('.dwfrm_billing_creditCardFields_cardNumber,.dwfrm_billing_creditCardFields_expirationMonth, .dwfrm_billing_creditCardFields_expirationYear, .dwfrm_billing_creditCardFields_securityCode, .form-group.cardNumber, .form-group.securityCode').show();
             }
             if ($('.data-checkout-stage').data('customer-type') === 'guest') {
                 $('#credit-card-content .user-payment-instruments.container').addClass('checkout-hidden');
                 $('.btn.btn-block.cancel-new-payment, .save-credit-card.custom-control.custom-checkbox ').hide();
                 $('.credit-card-form').removeClass('checkout-hidden');
             } else if ($('.data-checkout-stage').data('customer-type') === 'registered') {
-                $('#credit-card-content .user-payment-instruments.container').removeClass('checkout-hidden');
+                $('#credit-card-content .user-payment-instruments.container');
                 $('.btn.btn-block.cancel-new-payment, .save-credit-card.custom-control.custom-checkbox ').show();
-                $('.credit-card-form').addClass('checkout-hidden');
+                $('.credit-card-form');
             }
             $('.bankTransfer').hide();
             $('.next-step-button .submit-payment').attr('id', 'showSubmitPayment');
@@ -147,11 +147,11 @@ base.selectSavedPaymentInstrument = function () {
         $('.saved-payment-instrument.selected-payment '
             + '.security-code-input').removeClass('checkout-hidden');
         $('#selectedCardID').val($('.saved-payment-instrument.selected-payment').data('uuid'));
-        $('input[name="dwfrm_billing_creditCardFields_cardNumber"]').val($.trim($('.saved-payment-instrument.selected-payment .saved-credit-card-number').text()));
-        var cardType = $.trim($('.saved-payment-instrument.selected-payment .saved-credit-card-type').text()).replace(/\s{2,}/g, ' ').split(' ');
+        $('input[name="dwfrm_billing_creditCardFields_cardNumber"]').val(($('.saved-payment-instrument.selected-payment .saved-credit-card-number').text()).trim());
+        var cardType = ($('.saved-payment-instrument.selected-payment .saved-credit-card-type').text()).trim().replace(/\s{2,}/g, ' ').split(' ');
         $('input[name="dwfrm_billing_creditCardFields_cardType"]').val(cardType[1]);
-        var expiryDate = $.trim($('.saved-payment-instrument.selected-payment .saved-credit-card-expiration-date').text()).replace(/[a-zA-Z\s]+/, '').split('/');
-        $('input[name="dwfrm_billing_creditCardFields_securityCode"]').val($.trim($('.saved-payment-instrument.selected-payment #saved-payment-security-code').val()));
+        var expiryDate = ($('.saved-payment-instrument.selected-payment .saved-credit-card-expiration-date').text()).trim().replace(/[a-zA-Z\s]+/, '').split('/');
+        $('input[name="dwfrm_billing_creditCardFields_securityCode"]').val($('.saved-payment-instrument.selected-payment #saved-payment-security-code').val().trim());
         $('#expirationMonth').val(expiryDate[0]);
         $('#expirationYear').val(expiryDate[1]);
     });
@@ -232,14 +232,14 @@ base.onBillingAddressUpdate = function () {
             var state = $('select[name$=_billing_addressFields_states_stateCode]').val();
             var country = $('select[name$=_billing_addressFields_country]').val();
 
-            firstName = $.trim(firstName);
-            lastName = $.trim(lastName);
-            add1 = $.trim(add1);
+            firstName = firstName.trim();
+            lastName = lastName.trim();
+            add1 = add1.trim();
             // add2 = $.trim(add2);
-            city = $.trim(city);
-            postalCode = $.trim(postalCode);
-            state = $.trim(state);
-            country = $.trim(country);
+            city = city.trim();
+            postalCode = postalCode.trim();
+            state = state.trim();
+            country = country.trim();
             if (firstName && lastName && add1 && city && postalCode && state && country) {
                 saveBillingAddress();
             }

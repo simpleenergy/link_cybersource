@@ -1,8 +1,11 @@
 'use strict';
 
 var Logger = require('dw/system/Logger');
-var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
-var CSServices = require('~/cartridge/scripts/init/SoapServiceInit');
+var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
+var CSServices = require('*/cartridge/scripts/init/SoapServiceInit');
+var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
+var CybersourceHelper = libCybersource.getCybersourceHelper();
+var csReference = new CybersourceHelper.getcsReference();
 
 /**
  * This method create the input for the cybersource visa checkout payment method, It validates the data and the card details.
@@ -22,13 +25,12 @@ function CCAuthRequest(Basket, OrderNo, IPAddress) {
     var data = session.forms.visaCheckout.encryptedPaymentData.value;
     var callID = session.forms.visaCheckout.callId.value;
     /* eslint-enable */
-    var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
     //* *************************************************************************//
     // Set WebReference & Stub
     //* *************************************************************************//
     var CybersourceHelper = libCybersource.getCybersourceHelper();
     // eslint-disable-next-line
-    var csReference = webreferences2.CyberSourceTransaction;
     var serviceRequest = new csReference.RequestMessage();
 
     //* *************************************************************************//
@@ -42,7 +44,7 @@ function CCAuthRequest(Basket, OrderNo, IPAddress) {
     // Objects to set in the Service Request inside facade
     var shipTo; var billTo; var
         purchaseObject;
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
     var result = CommonHelper.CreateCyberSourceBillToObject(basket);
     billTo = result.billTo;
     result = CommonHelper.CreateCybersourceShipToObject(basket);
@@ -91,7 +93,7 @@ function CCAuthRequest(Basket, OrderNo, IPAddress) {
 
     CybersourceHelper.addAVSRequestInfo(serviceRequest, ignoreAVSResult, declineAVSFlags);
     /* End of AVS Service setup */
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     CardHelper.writeOutDebugLog(serviceRequest, orderNo);
 
     //* *************************************************************************//
@@ -100,11 +102,9 @@ function CCAuthRequest(Basket, OrderNo, IPAddress) {
     var serviceResponse = null;
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_VISA_CHECKOUT);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[VisaCheckoutFacade.js] Error in CCAuthRequest ( {0} )', e.message);
@@ -137,11 +137,10 @@ function CCAuthRequest(Basket, OrderNo, IPAddress) {
  * @returns {Object} obj
  */
 function VCDecryptRequest(orderNo, wrappedKey, data, callID) {
-    var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
     var CybersourceHelper = libCybersource.getCybersourceHelper();
 
     // eslint-disable-next-line
-    var csReference = webreferences2.CyberSourceTransaction;
     var serviceRequest = new csReference.RequestMessage();
     CybersourceHelper.addVCDecryptRequestInfo(serviceRequest, orderNo, wrappedKey, data);
     CybersourceHelper.addVCOrderID(serviceRequest, callID);
@@ -152,11 +151,9 @@ function VCDecryptRequest(orderNo, wrappedKey, data, callID) {
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_VISA_CHECKOUT);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[VisaCheckoutFacade.js] Error in VCDecryptRequest request ( {0} )', e.message);
@@ -277,6 +274,43 @@ function VCDecryptRequest(orderNo, wrappedKey, data, callID) {
     return { success: true, serviceResponse: responseObject };
 }
 
+function PayerAuthSetup(orderNo){
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
+    var CybersourceHelper = libCybersource.getCybersourceHelper();
+    var serviceRequest = new csReference.RequestMessage();
+    CybersourceHelper.addVCOrderID(serviceRequest, session.forms.visaCheckout.callId.value);
+    serviceRequest.paymentSolution= 'visacheckout';
+    CybersourceHelper.addPayerAuthSetupInfo(serviceRequest, null, orderNo, null);
+    var serviceResponse = null;
+
+    // send request
+    try {
+        var service = CSServices.CyberSourceTransactionService;
+        var requestWrapper = {};
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
+        requestWrapper.request = serviceRequest;
+        serviceResponse = service.call(requestWrapper);
+    } catch (e) {
+        Logger.error('[VisaCheckoutFacade.js] Error in PayerAuthSetUp request ( {0} )', e.message);
+        return { error: true, errorMsg: e.message };
+    }
+    // eslint-disable-next-line
+    if (empty(serviceResponse) || serviceResponse.status !== 'OK') {
+        Logger.error('[VisaCheckoutFacade.js] response in PayerAuthSetUp response ( {0} )', serviceResponse);
+        return { error: true, errorMsg: 'empty or error in PayerAuthSetUp response: ' + serviceResponse };
+    }
+    serviceResponse = serviceResponse.object;
+    // set response values in local variables
+    var responseObject = {};
+    if (serviceResponse.payerAuthSetupReply !== null) {
+    responseObject.accessToken = serviceResponse.payerAuthSetupReply.accessToken;
+    responseObject.deviceDataCollectionURL = serviceResponse.payerAuthSetupReply.deviceDataCollectionURL;
+    responseObject.referenceID = serviceResponse.payerAuthSetupReply.referenceID;    
+    }
+    return responseObject;
+}
+
+
 /**
  * This method is called when payer authorization is required along with CC validation.Service response is send to the calling method.
  * @param {dw.order.LineItemCtnr} LineItemCtnrObj contains object of basket or order
@@ -298,11 +332,10 @@ function PayerAuthEnrollCCAuthRequest(LineItemCtnrObj, Amount, OrderNo) {
     var wrappedKey = session.forms.visaCheckout.encryptedPaymentWrappedKey.value;
     var data = session.forms.visaCheckout.encryptedPaymentData.value;
     var callID = session.forms.visaCheckout.callId.value;
-    var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
     var CybersourceHelper = libCybersource.getCybersourceHelper();
-    var csReference = webreferences2.CyberSourceTransaction;
     var serviceRequest = new csReference.RequestMessage();
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
     var deviceType = CommonHelper.getDeviceType(request);
     /* eslint-enable */
     var paymentMethodID = lineItemCtnrObj.paymentInstrument.paymentMethod;
@@ -359,11 +392,9 @@ function PayerAuthEnrollCCAuthRequest(LineItemCtnrObj, Amount, OrderNo) {
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_VISA_CHECKOUT);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[VisaCheckoutFacade.js] Error in PayerAuthEnrollCheck request ( {0} )', e.message);
@@ -377,7 +408,7 @@ function PayerAuthEnrollCCAuthRequest(LineItemCtnrObj, Amount, OrderNo) {
     serviceResponse = serviceResponse.object;
     // set response values in local variables
     var responseObject = {};
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     result = CardHelper.ProcessCardAuthResponse(serviceResponse, shipTo, billTo);
     responseObject = result.responseObject;
     // eslint-disable-next-line
@@ -393,6 +424,8 @@ function PayerAuthEnrollCCAuthRequest(LineItemCtnrObj, Amount, OrderNo) {
         responseObject.PAReq = serviceResponse.payerAuthEnrollReply.paReq;
         responseObject.ProxyPAN = serviceResponse.payerAuthEnrollReply.proxyPAN;
         responseObject.authenticationTransactionID = serviceResponse.payerAuthEnrollReply.authenticationTransactionID;
+        responseObject.jwt = serviceResponse.payerAuthEnrollReply.accessToken;
+        responseObject.stepUpUrl = serviceResponse.payerAuthEnrollReply.stepUpUrl;
     }
     return { success: true, serviceResponse: responseObject };
 }
@@ -417,14 +450,13 @@ function PayerAuthValidationCCAuthRequest(LineItemCtnrObj, PaRes, Amount, OrderN
     //* *************************************************************************//
     // Set WebReference & Stub
     //* *************************************************************************//
-    var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
     var CybersourceHelper = libCybersource.getCybersourceHelper();
 
     /* eslint-disable */
     var wrappedKey = session.forms.visaCheckout.encryptedPaymentWrappedKey.value;
     var data = session.forms.visaCheckout.encryptedPaymentData.value;
     var callID = session.forms.visaCheckout.callId.value;
-    var csReference = webreferences2.CyberSourceTransaction;
     var serviceRequest = new csReference.RequestMessage();
     /* eslint-enable */
 
@@ -433,7 +465,7 @@ function PayerAuthValidationCCAuthRequest(LineItemCtnrObj, PaRes, Amount, OrderN
     // Objects to set in the Service Request inside facade
     var shipTo; var billTo; var
         purchaseObject;
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
     var result = CommonHelper.CreateCybersourceShipToObject(lineItemCtnrObj);
     shipTo = result.shipTo;
     result = CommonHelper.CreateCyberSourceBillToObject(lineItemCtnrObj, true);
@@ -460,11 +492,9 @@ function PayerAuthValidationCCAuthRequest(LineItemCtnrObj, PaRes, Amount, OrderN
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_VISA_CHECKOUT);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[VisaCheckoutFacade.js] Error in PayerAuthValidation request ( {0} )', e.message);
@@ -479,7 +509,7 @@ function PayerAuthValidationCCAuthRequest(LineItemCtnrObj, PaRes, Amount, OrderN
     serviceResponse = serviceResponse.object;
     // set response values in local variables
     var responseObject = {};
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     result = CardHelper.ProcessCardAuthResponse(serviceResponse, shipTo, billTo);
     responseObject = result.responseObject;
     // eslint-disable-next-line
@@ -529,13 +559,12 @@ function ButtonDisplay() {
  * @returns {Object} obj
  */
 function VCCaptureRequest(requestID, merchantRefCode, paymentType, purchaseTotal, currency, orderid) {
-    var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     var CybersourceHelper = libCybersource.getCybersourceHelper();
 
     // eslint-disable-next-line
-    var csReference = webreferences2.CyberSourceTransaction;
     var serviceRequest = new csReference.RequestMessage();
 
     var purchaseObject = CommonHelper.CreateCyberSourcePurchaseTotalsObject_UserData(currency, purchaseTotal);
@@ -569,11 +598,9 @@ function VCCaptureRequest(requestID, merchantRefCode, paymentType, purchaseTotal
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_VISA_CHECKOUT);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[VisaCheckoutFacade.js] Error in VCCaptureRequest request ( {0} )', e.message);
@@ -600,12 +627,11 @@ function VCCaptureRequest(requestID, merchantRefCode, paymentType, purchaseTotal
  * @returns {Object} obj
  */
 function VCAuthReversalService(requestID, merchantRefCode, paymentType, currency, amount, orderid) {
-    var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     var CybersourceHelper = libCybersource.getCybersourceHelper();
 
     // eslint-disable-next-line
-    var csReference = webreferences2.CyberSourceTransaction;
     var serviceRequest = new csReference.RequestMessage();
     var purchaseTotals = CardHelper.CreateCyberSourcePurchaseTotalsObject_UserData(currency, amount);
     purchaseTotals = libCybersource.copyPurchaseTotals(purchaseTotals.purchaseTotals);
@@ -640,11 +666,9 @@ function VCAuthReversalService(requestID, merchantRefCode, paymentType, currency
         // create request,make service call and store returned response
         var service = CSServices.CyberSourceTransactionService;
         // getting merchant id and key for specific payment method
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_VISA_CHECKOUT);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[VisaCheckoutFacade.js] Error in VCAuthReversalService: {0}', e.message);
@@ -674,13 +698,12 @@ function VCAuthReversalService(requestID, merchantRefCode, paymentType, currency
  * @returns {Object} serviceResponse
  */
 function VCCreditRequest(requestID, merchantRefCode, paymentType, purchaseTotal, currency, orderid) {
-    var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     var CybersourceHelper = libCybersource.getCybersourceHelper();
 
     // eslint-disable-next-line
-    var csReference = webreferences2.CyberSourceTransaction;
     var serviceRequest = new csReference.RequestMessage();
 
     var purchaseObject = CommonHelper.CreateCyberSourcePurchaseTotalsObject_UserData(currency, purchaseTotal);
@@ -714,11 +737,9 @@ function VCCreditRequest(requestID, merchantRefCode, paymentType, purchaseTotal,
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_CREDIT_CARD);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[VisaCheckoutFacade.js] Error in VCCreditRequest request ( {0} )', e.message);
@@ -736,6 +757,7 @@ function VCCreditRequest(requestID, merchantRefCode, paymentType, purchaseTotal,
 
 module.exports = {
     VCDecryptRequest: VCDecryptRequest,
+    PayerAuthSetup: PayerAuthSetup,
     PayerAuthValidationCCAuthRequest: PayerAuthValidationCCAuthRequest,
     PayerAuthEnrollCCAuthRequest: PayerAuthEnrollCCAuthRequest,
     CCAuthRequest: CCAuthRequest,
