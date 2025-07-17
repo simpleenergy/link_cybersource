@@ -194,7 +194,7 @@ function replaceCharsInSessionID(sessionID) {
 var CybersourceHelper = {
 
     getcsReference: function() {
-        var wsdlName = Site.getCurrent().getCustomPreferenceValue('CsP12_Name');
+        var wsdlName = Site.getCurrent().getCustomPreferenceValue('CsKeystore_Name');
         Logger.debug('wsdlName: {0}', wsdlName);
         Logger.debug('wsdlName: {0}', webreferences2);
         var webref = webreferences2[wsdlName];
