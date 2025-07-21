@@ -8,7 +8,7 @@ var PaymentStatusCodes = require('dw/order/PaymentStatusCodes');
 var Resource = require('dw/web/Resource');
 var Transaction = require('dw/system/Transaction');
 var Site = require('dw/system/Site');
-var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
+var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
 var collections = require('*/cartridge/scripts/util/collections');
 
 /**
@@ -124,7 +124,7 @@ function SecureAcceptanceHandle(basket, paymentInformation) {
             return true;
         });
     } else if (CsSAType.equals(CybersourceConstants.METHOD_SA_FLEX)) {
-        var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+        var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
         transStatus = Transaction.wrap(function () {
             CommonHelper.removeExistingPaymentInstruments(cart);
             paymentInstrument = cart.createPaymentInstrument(PaymentMethod, amount);
@@ -137,10 +137,8 @@ function SecureAcceptanceHandle(basket, paymentInformation) {
                 paymentInstrument.setCreditCardType(CardHelper.getCardType(cardType));
                 // eslint-disable-next-line
                 var flexResponse = session.forms.billing.creditCardFields.flexresponse.value;
-                var flexString = JSON.parse(flexResponse);
-                var flexToken = flexString.token;
-                paymentInstrument.setCreditCardToken(flexToken);
-            } else {
+            }
+            else {
                 paymentInstrument.setCreditCardType(cardType);
                 paymentInstrument.setCreditCardToken(paymentInformation.creditCardToken);
             }
@@ -222,7 +220,7 @@ function SecureAcceptanceAuthorize(orderNumber, pi, pmntProcessor) {
     if (CsSAType.equals(CybersourceConstants.METHOD_SA_REDIRECT)) {
         // eslint-disable-next-line
         additionalArgs.subscriptionToken = session.forms.billing.creditCardFields.selectedCardID.value;
-        var secureAcceptanceAdapter = require('~/cartridge/scripts/secureacceptance/adapter/SecureAcceptanceAdapter');
+        var secureAcceptanceAdapter = require('*/cartridge/scripts/secureacceptance/adapter/SecureAcceptanceAdapter');
         var saRedirectRequest = secureAcceptanceAdapter.Authorize(orderNumber, paymentInstrument, paymentProcessor, additionalArgs);
         if (saRedirectRequest.success) {
             if (saRedirectRequest.requestData != null) {
@@ -247,13 +245,13 @@ function SecureAcceptanceAuthorize(orderNumber, pi, pmntProcessor) {
     } else if (CsSAType.equals(CybersourceConstants.METHOD_SA_SILENTPOST)) {
         // eslint-disable-next-line
         additionalArgs.subscriptionToken = session.forms.billing.creditCardFields.selectedCardID.value;
-        return require('~/cartridge/scripts/secureacceptance/adapter/SecureAcceptanceAdapter').Authorize(orderNumber, paymentInstrument, paymentProcessor, additionalArgs);
+        return require('*/cartridge/scripts/secureacceptance/adapter/SecureAcceptanceAdapter').Authorize(orderNumber, paymentInstrument, paymentProcessor, additionalArgs);
     } else {
         if (CsSAType.equals(CybersourceConstants.METHOD_SA_IFRAME)) {
             // eslint-disable-next-line
             session.privacy.order_id = orderNumber;
         }
-        return require('~/cartridge/scripts/secureacceptance/adapter/SecureAcceptanceAdapter').Authorize(orderNumber, paymentInstrument, paymentProcessor, additionalArgs);
+        return require('*/cartridge/scripts/secureacceptance/adapter/SecureAcceptanceAdapter').Authorize(orderNumber, paymentInstrument, paymentProcessor, additionalArgs);
     }
 }
 
@@ -282,7 +280,6 @@ exports.Authorize = function (orderNumber, paymentInstrument, paymentProcessor) 
         pi.paymentTransaction.paymentProcessor = paymentProcessor;
     });
 
-    // var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
     if ((paymentMethod.equals(CybersourceConstants.METHOD_CREDIT_CARD)
             && (CsSAType == null || CsSAType.equals(CybersourceConstants.METHOD_SA_FLEX))) || paymentMethod.equals(CybersourceConstants.METHOD_VISA_CHECKOUT) || paymentMethod.equals(CybersourceConstants.METHOD_GooglePay)) {
         var SecureAcceptanceHelper = require(CybersourceConstants.SECUREACCEPTANCEHELPER);

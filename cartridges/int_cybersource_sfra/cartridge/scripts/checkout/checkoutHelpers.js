@@ -7,7 +7,7 @@
 var base = module.superModule;
 var renderTemplateHelper = require('*/cartridge/scripts/renderTemplateHelper');
 var Transaction = require('dw/system/Transaction');
-var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
+var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
 
 /**
  * creates a new payment instrument in customers wallet if payment instrument is new
@@ -27,7 +27,7 @@ function savePaymentInstrumentToWallet(billingDataObj, currentBasket, customer) 
     var Site = require('dw/system/Site');
     var Resource = require('dw/web/Resource');
     var CsSAType = Site.getCurrent().getCustomPreferenceValue('CsSAType').value;
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     if (CsSAType != null && CsSAType === Resource.msg('cssatype.SA_FLEX', 'cybersource', null)) {
         billingData.paymentInformation.cardType.value = CardHelper.getCardType(billingData.paymentInformation.cardType.value);
     }
@@ -92,13 +92,11 @@ function savePaymentInstrumentToWallet(billingDataObj, currentBasket, customer) 
         if (CsSAType != null && CsSAType === Resource.msg('cssatype.SA_FLEX', 'cybersource', null)) {
             // eslint-disable-next-line
             var flexResponse = session.forms.billing.creditCardFields.flexresponse.value;
-            var flexString = JSON.parse(flexResponse);
-            storedPaymentInstrument.setCreditCardToken(flexString.token);
         }
     }
 
     if (verifyDuplicates) {
-        var PaymentInstrumentUtils = require('~/cartridge/scripts/utils/PaymentInstrumentUtils');
+        var PaymentInstrumentUtils = require('*/cartridge/scripts/utils/PaymentInstrumentUtils');
         PaymentInstrumentUtils.removeDuplicates({
             PaymentInstruments: paymentInstruments,
             CreditCardFields: {
@@ -348,7 +346,7 @@ function handleSilentPostAuthorize(order) {
     var HookMgr = require('dw/system/HookMgr');
     var paymentInstrument;
     if (order !== null) {
-        var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+        var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
         paymentInstrument = CardHelper.getNonGCPaymemtInstument(order);
     }
     var authorizationResult;
@@ -374,7 +372,7 @@ function handleSilentPostAuthorize(order) {
  */
 function addOrUpdateToken(order, customerObj, res) {
     var URLUtils = require('dw/web/URLUtils');
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     var paymentInstrument;
     if (order !== null) {
         paymentInstrument = CardHelper.getNonGCPaymemtInstument(order);
@@ -391,7 +389,7 @@ function addOrUpdateToken(order, customerObj, res) {
  * @returns {*} obj
  */
 function getNonGCPaymemtInstument(basket) {
-    var CardHelper = require('~/cartridge/scripts/helper/CardHelper');
+    var CardHelper = require('*/cartridge/scripts/helper/CardHelper');
     return CardHelper.getNonGCPaymemtInstument(basket);
 }
 

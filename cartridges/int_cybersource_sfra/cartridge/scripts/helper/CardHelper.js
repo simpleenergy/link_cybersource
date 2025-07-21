@@ -2,7 +2,7 @@
 
 var Site = require('dw/system/Site');
 var Logger = require('dw/system/Logger');
-var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
+var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
 /**
  * Handle the DAVReasonCode when unavailable the use ReasonCode.
  * @param {Object} ResponseObject DAV response object
@@ -91,7 +91,7 @@ function ProcessCardAuthResponse(serviceResponse, shipTo, billTo) {
     }
     /* End of DAV response processing */
 
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
     CommonHelper.LogResponse(serviceResponse.merchantReferenceCode, serviceResponse.requestID, serviceResponse.requestToken, Number(serviceResponse.reasonCode), serviceResponse.decision);
 
     return { success: true, responseObject: responseObject };
@@ -126,6 +126,9 @@ function HandleCardResponse(ResponseObject) {
         case 480:
             return { review: true };
 
+        case 478:
+            return {sca : true};
+    
         default:
             return { error: true, declined: true };
     }
@@ -225,7 +228,7 @@ function CreateCybersourcePaymentCardObject(formType, SubscriptionID) {
     var firstName;
     var lastName;
     var cardObject;
-    var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
+    var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
 
     /* eslint-disable */
     switch (formType) {
@@ -248,6 +251,8 @@ function CreateCybersourcePaymentCardObject(formType, SubscriptionID) {
             cvnNumber = session.forms.billing.creditCardFields.securityCode.value;
             if (SubscriptionID && !empty(SubscriptionID)) {
                 subscriptionToken = SubscriptionID;
+            }else {
+                subscriptionToken = CommonHelper.GetSubscriptionToken(session.forms.creditCard.selectedCardID.value, customer);
             }
             break;
         case 'paymentinstruments':
@@ -264,7 +269,7 @@ function CreateCybersourcePaymentCardObject(formType, SubscriptionID) {
     /* eslint-enable */
     // eslint-disable-next-line
     if (!empty(cardType)) {
-        var CardObject = require('~/cartridge/scripts/cybersource/CybersourceCardObject');
+        var CardObject = require('*/cartridge/scripts/cybersource/CybersourceCardObject');
         cardObject = new CardObject();
         // eslint-disable-next-line
         if (empty(subscriptionToken)) {
@@ -287,7 +292,7 @@ function CreateCybersourcePaymentCardObject(formType, SubscriptionID) {
  */
 function CreateCyberSourcePurchaseTotalsObjectUserData(currency, Amount) {
     var amount = Amount;
-    var PurchaseTotalsObject = require('~/cartridge/scripts/cybersource/CybersourcePurchaseTotalsObject');
+    var PurchaseTotalsObject = require('*/cartridge/scripts/cybersource/CybersourcePurchaseTotalsObject');
     var purchaseObject = new PurchaseTotalsObject();
     purchaseObject.setCurrency(currency);
     amount = parseFloat(amount);
@@ -369,7 +374,7 @@ function getCardType(cardTypeValue) {
             cardType = 'JCB';
             break;
         default:
-            cardType = '';
+            cardType = cardTypeValue;
     }
     return cardType;
 }
@@ -443,7 +448,7 @@ function addOrUpdateToken(paymentInstrument, customer) {
  */
 function CardResponse(order, paymentInstrument, serviceResponse) {
     // response validate
-    var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
+    var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
     var CybersourceHelper = libCybersource.getCybersourceHelper();
 
     // eslint-disable-next-line
@@ -459,8 +464,8 @@ function CardResponse(order, paymentInstrument, serviceResponse) {
         }
 
         // order payment transaction updates
-        var CommonHelper = require('~/cartridge/scripts/helper/CommonHelper');
-        var PaymentInstrumentUtils = require('~/cartridge/scripts/utils/PaymentInstrumentUtils');
+        var CommonHelper = require('*/cartridge/scripts/helper/CommonHelper');
+        var PaymentInstrumentUtils = require('*/cartridge/scripts/utils/PaymentInstrumentUtils');
         PaymentInstrumentUtils.UpdatePaymentTransactionCardAuthorize(paymentInstrument, serviceResponse);
         if (serviceResponse.StandardizedAddress && (serviceResponse.ReasonCode === '100' || serviceResponse.ReasonCode === '480')) {
             // eslint-disable-next-line

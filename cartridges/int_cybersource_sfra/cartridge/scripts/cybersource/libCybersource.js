@@ -10,6 +10,7 @@
  *
  */
 var Site = require('dw/system/Site');
+var Logger = require('dw/system/Logger');
 
 // Helper method to export the helper
 function getCybersourceHelper() {
@@ -19,7 +20,7 @@ function getCybersourceHelper() {
 
 function copyBillTo(billTo) {
     // eslint-disable-next-line
-    var requestBillTo = new CybersourceHelper.csReference.BillTo();
+    var requestBillTo = new CybersourceHelper.getcsReference().BillTo();
     var value;
     // eslint-disable-next-line
     if (!empty(billTo)) {
@@ -37,7 +38,7 @@ function copyBillTo(billTo) {
 
 function copyShipTo(shipTo) {
     // eslint-disable-next-line
-    var requestShipTo = new CybersourceHelper.csReference.ShipTo();
+    var requestShipTo = new CybersourceHelper.getcsReference().ShipTo();
     var value;
     if (!empty(shipTo)) {
         Object.keys(shipTo).forEach(function (name) {
@@ -54,7 +55,7 @@ function copyShipTo(shipTo) {
 
 function copyPurchaseTotals(purchase) {
     // eslint-disable-next-line
-    var requestPurchaseTotals = new CybersourceHelper.csReference.PurchaseTotals();
+    var requestPurchaseTotals = new CybersourceHelper.getcsReference().PurchaseTotals();
     var value;
     if (!empty(purchase)) {
         Object.keys(purchase).forEach(function (name) {
@@ -71,7 +72,7 @@ function copyPurchaseTotals(purchase) {
 
 function copyCreditCard(card) {
     // eslint-disable-next-line
-    var requestCard = new CybersourceHelper.csReference.Card();
+    var requestCard = new CybersourceHelper.getcsReference().Card();
     var value;
     if (card) {
         Object.keys(card).forEach(function (name) {
@@ -88,7 +89,7 @@ function copyCreditCard(card) {
 
 function copyItemFrom(item) {
     // eslint-disable-next-line
-    var requestItem = new CybersourceHelper.csReference.Item();
+    var requestItem = new CybersourceHelper.getcsReference().Item();
     var value;
     Object.keys(item).forEach(function (name) {
         if (name.indexOf('set') === -1 && name.indexOf('get') === -1) {
@@ -115,7 +116,7 @@ function copyTaxAmounts(taxReply) {
 
 function copyAp(ap) {
     // eslint-disable-next-line
-    var requestAp = new CybersourceHelper.csReference.apPayer();
+    var requestAp = new CybersourceHelper.getcsReference().apPayer();
     var value;
     Object.keys(ap).forEach(function (name) {
         if (name.indexOf('set') === -1 && name.indexOf('get') === -1) {
@@ -134,7 +135,7 @@ function getPaymentType() {
 
 function copyPos(pos) {
     // eslint-disable-next-line
-    var requestPos = new CybersourceHelper.csReference.Pos();
+    var requestPos = new CybersourceHelper.getcsReference().Pos();
     var value;
     Object.keys(pos).forEach(function (name) {
         if (name.indexOf('set') === -1 && name.indexOf('get') === -1) {
@@ -174,43 +175,58 @@ function setClientData(request, refCode, fingerprint) {
     if (!empty(developerID)) {
         request.developerID = developerID;
     }
-    request.clientLibrary = 'Salesforce Commerce Cloud';
-    request.clientLibraryVersion = '22.1.0';
+    var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
+
+    request.clientApplication = CybersourceConstants.APPLICATION_NAME;
+    request.clientApplicationVersion = CybersourceConstants.APPLICATION_VERSION;
     request.clientEnvironment = 'Linux';
     request.partnerSDKversion = Resource.msg('global.version.number', 'version', null);
-    request.clientApplicationVersion = 'SFRA';
     if (fingerprint) {
         request.deviceFingerprintID = fingerprint;
     }
 }
 
+function replaceCharsInSessionID(sessionID) {
+    var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
+    return sessionID.replace(CybersourceConstants.CHARS_TO_REPLACE_FOR_SESSIONID, CybersourceConstants.SPECIALCHARS);
+}
+
 var CybersourceHelper = {
-    csReference: webreferences2.CyberSourceTransaction,
+
+    getcsReference: function() {
+        var wsdlName = Site.getCurrent().getCustomPreferenceValue('CsKeystore_Name');
+        Logger.debug('wsdlName: {0}', wsdlName);
+        Logger.debug('wsdlName: {0}', webreferences2);
+        var webref = webreferences2[wsdlName];
+        return webref;
+    },
 
     getMerchantID: function () {
         return Site.getCurrent().getCustomPreferenceValue('CsMerchantId');
     },
-    getMerhcantCredentials: function (paymentMethodObj) {
-        var paymentMethod = paymentMethodObj;
-        var PaymentMgr = require('dw/order/PaymentMgr');
-        var merchantCredentials = {};
-        if (!empty(paymentMethod)) {
-            paymentMethod = PaymentMgr.getPaymentMethod(paymentMethod);
-            if (!empty(paymentMethod.custom.merchantID) && !empty(paymentMethod.custom.merchantKey)) {
-                merchantCredentials.merchantID = paymentMethod.custom.merchantID;
-                merchantCredentials.merchantKey = paymentMethod.custom.merchantKey;
-            } else {
-                merchantCredentials.merchantID = Site.getCurrent().getCustomPreferenceValue('CsMerchantId');
-                merchantCredentials.merchantKey = Site.getCurrent().getCustomPreferenceValue('CsSecurityKey');
-            }
-        } else {
-            merchantCredentials.merchantID = Site.getCurrent().getCustomPreferenceValue('CsMerchantId');
-            merchantCredentials.merchantKey = Site.getCurrent().getCustomPreferenceValue('CsSecurityKey');
-        }
-        return merchantCredentials;
+
+    getKeystorePassword: function () {
+        return Site.getCurrent().getCustomPreferenceValue('CsKeystore_Password');
     },
-    getSoapSecurityKey: function () {
-        return Site.getCurrent().getCustomPreferenceValue('CsSecurityKey');
+
+    getAliasForSignature: function () {
+        return Site.getCurrent().getCustomPreferenceValue('CsAuth_Alias');
+    },
+
+    isMLEEnabled: function () {
+        return Site.getCurrent().getCustomPreferenceValue('CsMLE_Enabled');
+    },
+
+    getAliasForMLEinJKSfile: function () {
+        return Site.getCurrent().getCustomPreferenceValue('CsJKS_MLEAlias');
+    },
+
+    getKeystoreTypeforAuthentication: function () {
+        return Site.getCurrent().getCustomPreferenceValue('CsAuth_KeystoreType');
+    },
+
+    getklarnaPrivateKeyAlias: function() {
+        return Site.getCurrent().getCustomPreferenceValue('klarnaPrivateKeyAlias');
     },
 
     getEndpoint: function () {
@@ -222,7 +238,7 @@ var CybersourceHelper = {
     },
 
     getPartnerSolutionID: function () {
-        return 'BC9LEGMV';
+        return 'HCBFKU34';
     },
 
     getDeveloperID: function () {
@@ -427,6 +443,18 @@ var CybersourceHelper = {
     getServiceCallInterval: function () {
         return Site.getCurrent().getCustomPreferenceValue('CheckStatusServiceInterval');
     },
+    getCsTransactionType: function () {
+        return Site.getCurrent().getCustomPreferenceValue('CsTransactionType');
+    },
+    getVisaTransactionType: function () {
+        return Site.getCurrent().getCustomPreferenceValue('cybVisaTransactionType');
+    },
+    getGooglePayTransactionType: function () {
+        return Site.getCurrent().getCustomPreferenceValue('googlePayTransactionType');
+    },
+    getApplePayTransactionType: function () {
+        return Site.getCurrent().getCustomPreferenceValue('ApplePayTransactionType');
+    },
     /** ***************************************************************************
      * Name: getNexus
      * Description: Returns the Nexus site preference.
@@ -487,12 +515,13 @@ var CybersourceHelper = {
         }
     },
 
+
     /** ***************************************************************************
      * request  ,
      * vc_orderID     - visa checkout  callID
      **************************************************************************** */
     addVCOrderID: function (request, vcOrderID) {
-        var requestVc = new CybersourceHelper.csReference.VC();
+        var requestVc = new CybersourceHelper.getcsReference().VC();
         requestVc.orderID = vcOrderID;
         request.vc = requestVc;
     },
@@ -506,11 +535,11 @@ var CybersourceHelper = {
         request.merchantID = CybersourceHelper.getMerchantID();
         request.paymentSolution = 'visacheckout';
         setClientData(request, refCode, null);
-        var requestEncryptedPayment = new CybersourceHelper.csReference.EncryptedPayment();
+        var requestEncryptedPayment = new CybersourceHelper.getcsReference().EncryptedPayment();
         requestEncryptedPayment.wrappedKey = wrappedKey;
         requestEncryptedPayment.data = data;
         request.encryptedPayment = requestEncryptedPayment;
-        request.decryptVisaCheckoutDataService = new CybersourceHelper.csReference.DecryptVisaCheckoutDataService();
+        request.decryptVisaCheckoutDataService = new CybersourceHelper.getcsReference().DecryptVisaCheckoutDataService();
         request.decryptVisaCheckoutDataService.run = true;
     },
     /** ***************************************************************************
@@ -523,7 +552,7 @@ var CybersourceHelper = {
         request.merchantID = CybersourceHelper.getMerchantID();
         request.paymentSolution = 'visacheckout';
         setClientData(request, refCode, null);
-        var requestEncryptedPayment = new CybersourceHelper.csReference.EncryptedPayment();
+        var requestEncryptedPayment = new CybersourceHelper.getcsReference().EncryptedPayment();
         requestEncryptedPayment.wrappedKey = wrappedKey;
         requestEncryptedPayment.data = data;
         request.encryptedPayment = requestEncryptedPayment;
@@ -537,7 +566,7 @@ var CybersourceHelper = {
         request.merchantID = CybersourceHelper.getMerchantID();
         request.paymentSolution = '001';
         setClientData(request, refCode, null);
-        var requestEncryptedPayment = new CybersourceHelper.csReference.EncryptedPayment();
+        var requestEncryptedPayment = new CybersourceHelper.getcsReference().EncryptedPayment();
         requestEncryptedPayment.descriptor = 'RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U';
         requestEncryptedPayment.data = data;
         request.encryptedPayment = requestEncryptedPayment;
@@ -552,7 +581,7 @@ var CybersourceHelper = {
         var CybersourceConstants = require('../utils/CybersourceConstants');
         request.paymentSolution = (authRequestParams.MobilePaymentType === CybersourceConstants.METHOD_ApplePay ? '001' : '006');
         setClientData(request, authRequestParams.orderNo, null);
-        var requestPaymentNetworkToken = new CybersourceHelper.csReference.PaymentNetworkToken();
+        var requestPaymentNetworkToken = new CybersourceHelper.getcsReference().PaymentNetworkToken();
         requestPaymentNetworkToken.transactionType = '1';
         request.paymentNetworkToken = requestPaymentNetworkToken;
     },
@@ -567,8 +596,14 @@ var CybersourceHelper = {
     addCCAuthRequestInfo: function (request, billTo, shipTo, purchase, card, refCode, enableDeviceFingerprint, itemsCybersource) {
         request.merchantID = CybersourceHelper.getMerchantID();
         var fingerprint = null;
-        if (enableDeviceFingerprint) {
-            fingerprint = session.sessionID;
+        var OrderMgr = require('dw/order/OrderMgr');
+        var order = OrderMgr.getOrder(refCode);
+        var paymentMethod = order.paymentInstruments[0].paymentMethod;
+        var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
+
+        
+        if (enableDeviceFingerprint && CybersourceHelper.getCardDecisionManagerEnable()) {
+            fingerprint = replaceCharsInSessionID(session.sessionID);
         }
 
         setClientData(request, refCode, fingerprint);
@@ -578,11 +613,18 @@ var CybersourceHelper = {
         request.shipTo = copyShipTo(shipTo);
         request.purchaseTotals = copyPurchaseTotals(purchase);
 
-        if (!empty(card)) {
+        var server = require('server');
+        var form = server.forms.getForm('billing');
+        var transientToken = form.creditCardFields.flexresponse.value;
+        // check here for transient token and assign
+        if (transientToken) {
+                request.tokenSource = new CybersourceHelper.getcsReference().TokenSource();
+                request.tokenSource.transientToken = transientToken;
+        } else if (!empty(card)) {
             if (empty(card.getCreditCardToken())) {
                 request.card = copyCreditCard(card);
             } else {
-                var requestCard = new CybersourceHelper.csReference.Card();
+                var requestCard = new CybersourceHelper.getcsReference().Card();
                 var value;
                 Object.keys(card).forEach(function (name) {
                     if (name.indexOf('set') === -1 && name.indexOf('get') === -1 && name.indexOf('CardToken') === -1 && name.indexOf('accountNumber') === -1) {
@@ -616,7 +658,7 @@ var CybersourceHelper = {
 
         request.item = items;
 
-        request.decisionManager = new CybersourceHelper.csReference.DecisionManager();
+        request.decisionManager = new CybersourceHelper.getcsReference().DecisionManager();
         if (CybersourceHelper.getCardDecisionManagerEnable()) {
             request.decisionManager.enabled = true;
         } else {
@@ -624,12 +666,22 @@ var CybersourceHelper = {
         }
         // CMCIC
         request.cardTypeSelectionIndicator = '1';
-        request.ccAuthService = new CybersourceHelper.csReference.CCAuthService();
-        // eslint-disable-next-line
-        if (session.custom.SCA === true) {
-            request.ccAuthService.paChallengeCode = '04';
+        request.ccAuthService = new CybersourceHelper.getcsReference().CCAuthService();
+        request.ccAuthService.run = true;    
+        //Sale Transaction
+        if (paymentMethod === 'CREDIT_CARD' && CybersourceHelper.getCsTransactionType().value === 'sale') {
+            request.ccCaptureService = new CybersourceHelper.getcsReference().CCCaptureService();
+            request.ccCaptureService.run = true;
+        }else if (paymentMethod === 'VISA_CHECKOUT' && CybersourceHelper.getVisaTransactionType().value === 'sale') {
+            request.ccCaptureService = new CybersourceHelper.getcsReference().CCCaptureService();
+            request.ccCaptureService.run = true;
+        }else if (paymentMethod === 'DW_GOOGLE_PAY' && CybersourceHelper.getGooglePayTransactionType().value === 'sale') {
+            request.ccCaptureService = new CybersourceHelper.getcsReference().CCCaptureService();
+            request.ccCaptureService.run = true;
+        }else if (paymentMethod === 'DW_APPLE_PAY' && CybersourceHelper.getApplePayTransactionType().value === 'sale') {
+            request.ccCaptureService = new CybersourceHelper.getcsReference().CCCaptureService();
+            request.ccCaptureService.run = true;
         }
-        request.ccAuthService.run = true;
     },
 
     /** ***************************************************************************
@@ -641,10 +693,10 @@ var CybersourceHelper = {
      **************************************************************************** */
     addPOSAuthRequestInfo: function (request, location, purchase, card, refCode, enableDeviceFingerprint, pos) {
         request.merchantID = CybersourceHelper.getPosMerchantID(location);
-
+        var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
         var fingerprint = null;
         if (enableDeviceFingerprint) {
-            fingerprint = session.sessionID;
+            fingerprint = replaceCharsInSessionID(session.sessionID);
         }
 
         setClientData(request, refCode, fingerprint);
@@ -655,13 +707,13 @@ var CybersourceHelper = {
 
         request.purchaseTotals = copyPurchaseTotals(purchase);
 
-        request.ccAuthService = new CybersourceHelper.csReference.CCAuthService();
+        request.ccAuthService = new CybersourceHelper.getcsReference().CCAuthService();
 
         if (!empty(pos) && !empty(pos.getEntryMode()) && !empty(pos.getCardPresent()) && !empty(pos.getTerminalCapability())) {
             request.pos = copyPos(pos);
             request.ccAuthService.commerceIndicator = 'retail';
         }
-        request.decisionManager = new CybersourceHelper.csReference.DecisionManager();
+        request.decisionManager = new CybersourceHelper.getcsReference().DecisionManager();
         request.decisionManager.enabled = false;
         request.ccAuthService.run = true;
     },
@@ -683,16 +735,24 @@ var CybersourceHelper = {
             request.billTo = copyBillTo(billTo);
         }
         request.purchaseTotals = copyPurchaseTotals(purchase);
-        if (card !== null) {
-            request.card = copyCreditCard(card);
+        var server = require('server');
+        var form = server.forms.getForm('billing');
+        var transientToken = form.creditCardFields.flexresponse.value;
+        // check here for transient token and assign
+        if (transientToken) {
+            request.tokenSource = new CybersourceHelper.getcsReference().TokenSource();
+            request.tokenSource.transientToken = transientToken;
+        } else if (card !== null) {
+            request.card = copyCreditCard( card );
         }
+        session.custom.isScaEnabled = dw.system.Site.getCurrent().getCustomPreferenceValue('IsSCAEnabled');
         request.cardTypeSelectionIndicator = '1';
-        request.recurringSubscriptionInfo = new CybersourceHelper.csReference.RecurringSubscriptionInfo();
+        request.recurringSubscriptionInfo = new CybersourceHelper.getcsReference().RecurringSubscriptionInfo();
         request.recurringSubscriptionInfo.frequency = 'on-demand';
-        request.paySubscriptionCreateService = new CybersourceHelper.csReference.PaySubscriptionCreateService();
+        request.paySubscriptionCreateService = new CybersourceHelper.getcsReference().PaySubscriptionCreateService();
         request.paySubscriptionCreateService.disableAutoAuth = 'false';
         request.paySubscriptionCreateService.run = true;
-        request.decisionManager = new CybersourceHelper.csReference.DecisionManager();
+        request.decisionManager = new CybersourceHelper.getcsReference().DecisionManager();
         request.decisionManager.enabled = true;
     },
 
@@ -707,9 +767,9 @@ var CybersourceHelper = {
     ) {
         request.merchantID = CybersourceHelper.getMerchantID();
         setClientData(request, refCode);
-        request.recurringSubscriptionInfo = new CybersourceHelper.csReference.RecurringSubscriptionInfo();
+        request.recurringSubscriptionInfo = new CybersourceHelper.getcsReference().RecurringSubscriptionInfo();
         request.recurringSubscriptionInfo.subscriptionID = subscriptionID;
-        request.paySubscriptionRetrieveService = new CybersourceHelper.csReference.PaySubscriptionRetrieveService();
+        request.paySubscriptionRetrieveService = new CybersourceHelper.getcsReference().PaySubscriptionRetrieveService();
         request.paySubscriptionRetrieveService.run = true;
     },
 
@@ -724,9 +784,9 @@ var CybersourceHelper = {
     ) {
         request.merchantID = CybersourceHelper.getMerchantID();
         setClientData(request, refCode);
-        request.recurringSubscriptionInfo = new CybersourceHelper.csReference.RecurringSubscriptionInfo();
+        request.recurringSubscriptionInfo = new CybersourceHelper.getcsReference().RecurringSubscriptionInfo();
         request.recurringSubscriptionInfo.subscriptionID = subscriptionID;
-        request.paySubscriptionDeleteService = new CybersourceHelper.csReference.PaySubscriptionDeleteService();
+        request.paySubscriptionDeleteService = new CybersourceHelper.getcsReference().PaySubscriptionDeleteService();
         request.paySubscriptionDeleteService.run = true;
     },
 
@@ -749,11 +809,11 @@ var CybersourceHelper = {
         request.purchaseTotals = copyPurchaseTotals(purchase);
         request.card = copyCreditCard(card);
 
-        var requestRecurringSubscriptionInfo = new CybersourceHelper.csReference.RecurringSubscriptionInfo();
+        var requestRecurringSubscriptionInfo = new CybersourceHelper.getcsReference().RecurringSubscriptionInfo();
         requestRecurringSubscriptionInfo.subscriptionID = subscriptionID;
         request.recurringSubscriptionInfo = requestRecurringSubscriptionInfo;
 
-        request.paySubscriptionUpdateService = new CybersourceHelper.csReference.PaySubscriptionUpdateService();
+        request.paySubscriptionUpdateService = new CybersourceHelper.getcsReference().PaySubscriptionUpdateService();
         request.paySubscriptionUpdateService.run = true;
     },
 
@@ -769,14 +829,15 @@ var CybersourceHelper = {
     ) {
         request.merchantID = CybersourceHelper.getMerchantID();
         var fingerprint = null;
+        var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
         if (CybersourceHelper.getDigitalFingerprintEnabled()) {
-            fingerprint = session.sessionID;
+            fingerprint = replaceCharsInSessionID(session.sessionID);
         }
 
         setClientData(request, refCode, fingerprint);
         request.purchaseTotals = copyPurchaseTotals(purchase);
 
-        var requestRecurringSubscriptionInfo = new CybersourceHelper.csReference.RecurringSubscriptionInfo();
+        var requestRecurringSubscriptionInfo = new CybersourceHelper.getcsReference().RecurringSubscriptionInfo();
         requestRecurringSubscriptionInfo.subscriptionID = subscriptionID;
         request.recurringSubscriptionInfo = requestRecurringSubscriptionInfo;
     },
@@ -791,11 +852,11 @@ var CybersourceHelper = {
         }
         request.shipTo = copyShipTo(shipTo);
 
-        request.davService = new CybersourceHelper.csReference.DAVService();
+        request.davService = new CybersourceHelper.getcsReference().DAVService();
         request.davService.run = true;
 
         if (!('businessRules' in request && !empty(request.businessRules))) {
-            request.businessRules = new CybersourceHelper.csReference.BusinessRules();
+            request.businessRules = new CybersourceHelper.getcsReference().BusinessRules();
         }
 
         if (ignoreDAVResult) {
@@ -807,7 +868,7 @@ var CybersourceHelper = {
 
     addAVSRequestInfo: function (request, ignoreAVSResult, declineAVSFlags) {
         if (!('businessRules' in request && !empty(request.businessRules))) {
-            request.businessRules = new CybersourceHelper.csReference.BusinessRules();
+            request.businessRules = new CybersourceHelper.getcsReference().BusinessRules();
         }
 
         if (!empty(ignoreAVSResult) && ignoreAVSResult.valueOf()) {
@@ -821,6 +882,26 @@ var CybersourceHelper = {
         }
     },
 
+    addPayerAuthSetupInfo: function (serviceRequestObj, creditCardForm, orderNo, subscriptionToken){
+        var serviceRequest = serviceRequestObj;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
+
+        setClientData(serviceRequest, orderNo);
+
+        if (subscriptionToken !== 'undefined' && !empty(subscriptionToken)) {
+            var requestRecurringSubscriptionInfo = new CybersourceHelper.getcsReference().RecurringSubscriptionInfo();
+            requestRecurringSubscriptionInfo.subscriptionID = subscriptionToken;
+            serviceRequest.recurringSubscriptionInfo = requestRecurringSubscriptionInfo;
+        } else if (null !== creditCardForm && empty(creditCardForm.flexresponse.value)) {
+			CybersourceHelper.addCardInfo(serviceRequest, creditCardForm);
+		} else if (null !== creditCardForm && !empty(creditCardForm.flexresponse.value)) {
+			serviceRequest.tokenSource = new CybersourceHelper.getcsReference().TokenSource();
+			serviceRequest.tokenSource.transientToken = creditCardForm.flexresponse.value;
+		}
+        serviceRequest.payerAuthSetupService = new CybersourceHelper.getcsReference().PayerAuthSetupService();
+        serviceRequest.payerAuthSetupService.run = true;
+    },
+
     addPayerAuthEnrollInfo: function (serviceRequestObj, orderNo, creditCardForm, countryCode, amount, subscriptionToken, phoneNumber, deviceType, billTo, paymentMethodID) {
         var serviceRequest = serviceRequestObj;
         serviceRequest.merchantID = CybersourceHelper.getMerchantID();
@@ -828,21 +909,28 @@ var CybersourceHelper = {
         setClientData(serviceRequest, orderNo);
 
         if (billTo !== null) {
+            if(session.privacy.screenHeight && session.privacy.screenWidth){
+                billTo.setHttpBrowserScreenHeight(session.privacy.screenHeight);
+                billTo.setHttpBrowserScreenWidth(session.privacy.screenWidth);
+            }
             serviceRequest.billTo = copyBillTo(billTo);
         }
 
         if (subscriptionToken !== 'undefined' && !empty(subscriptionToken)) {
-            var requestRecurringSubscriptionInfo = new CybersourceHelper.csReference.RecurringSubscriptionInfo();
+            var requestRecurringSubscriptionInfo = new CybersourceHelper.getcsReference().RecurringSubscriptionInfo();
             requestRecurringSubscriptionInfo.subscriptionID = subscriptionToken;
             serviceRequest.recurringSubscriptionInfo = requestRecurringSubscriptionInfo;
-        } else if (creditCardForm !== null) {
-            CybersourceHelper.addCardInfo(serviceRequest, creditCardForm);
-        }
-        serviceRequest.payerAuthEnrollService = new CybersourceHelper.csReference.PayerAuthEnrollService();
-        serviceRequest.purchaseTotals = new CybersourceHelper.csReference.PurchaseTotals();
+        } else if (null !== creditCardForm && empty(creditCardForm.flexresponse.value)) {
+			CybersourceHelper.addCardInfo(serviceRequest, creditCardForm);
+		} else if (null !== creditCardForm && !empty(creditCardForm.flexresponse.value)) {
+			serviceRequest.tokenSource = new CybersourceHelper.getcsReference().TokenSource();
+			serviceRequest.tokenSource.transientToken = creditCardForm.flexresponse.value;
+		}
+        serviceRequest.payerAuthEnrollService = new CybersourceHelper.getcsReference().PayerAuthEnrollService();
+        serviceRequest.purchaseTotals = new CybersourceHelper.getcsReference().PurchaseTotals();
         serviceRequest.purchaseTotals.currency = amount.currencyCode;
         var items = [];
-        var item = new CybersourceHelper.csReference.Item();
+        var item = new CybersourceHelper.getcsReference().Item();
         var StringUtils = require('dw/util/StringUtils');
         item.id = 0;
         item.unitPrice = StringUtils.formatNumber(amount.value, '000000.00');
@@ -850,6 +938,11 @@ var CybersourceHelper = {
         serviceRequest.item = items;
         serviceRequest.payerAuthEnrollService.run = true;
         serviceRequest.payerAuthEnrollService.referenceID = session.privacy.DFReferenceId;
+        if(session.custom.enroll == false || session.custom.SCA == false || session.custom.isScaEnabled == true){
+        serviceRequest.payerAuthEnrollService.challengeCode = '04';
+        }
+        var URLUtils = require('dw/web/URLUtils');
+        serviceRequest.payerAuthEnrollService.returnURL =URLUtils.https('COPlaceOrder-Submit','provider','card').toString();
         serviceRequest.payerAuthEnrollService.mobilePhone = phoneNumber;
         // var currentDevice = session.privacy.device;
         serviceRequest.payerAuthEnrollService.transactionMode = getTransactionMode(deviceType);
@@ -863,11 +956,11 @@ var CybersourceHelper = {
         request.merchantID = CybersourceHelper.getMerchantID();
         setClientData(request, 'TestOrder');
         request.card = copyCreditCard(card);
-        request.payerAuthEnrollService = new CybersourceHelper.csReference.PayerAuthEnrollService();
-        request.purchaseTotals = new CybersourceHelper.csReference.PurchaseTotals();
+        request.payerAuthEnrollService = new CybersourceHelper.getcsReference().PayerAuthEnrollService();
+        request.purchaseTotals = new CybersourceHelper.getcsReference().PurchaseTotals();
         request.purchaseTotals.currency = 'USD';
         var items = [];
-        var item = new CybersourceHelper.csReference.Item();
+        var item = new CybersourceHelper.getcsReference().Item();
         var StringUtils = require('dw/util/StringUtils');
         item.id = 0;
         item.unitPrice = StringUtils.formatNumber('100', '000000.00');
@@ -880,12 +973,12 @@ var CybersourceHelper = {
         request.merchantID = CybersourceHelper.getMerchantID();
         setClientData(request, 'TestOrder');
         request.card = copyCreditCard(card);
-        request.payerAuthValidateService = new CybersourceHelper.csReference.PayerAuthValidateService();
+        request.payerAuthValidateService = new CybersourceHelper.getcsReference().PayerAuthValidateService();
         request.payerAuthValidateService.signedPARes = signedPARes;
-        request.purchaseTotals = new CybersourceHelper.csReference.PurchaseTotals();
+        request.purchaseTotals = new CybersourceHelper.getcsReference().PurchaseTotals();
         request.purchaseTotals.currency = 'USD';
         var items = [];
-        var item = new CybersourceHelper.csReference.Item();
+        var item = new CybersourceHelper.getcsReference().Item();
         var StringUtils = require('dw/util/StringUtils');
         item.id = 0;
         item.unitPrice = StringUtils.formatNumber('100', '000000.00');
@@ -896,7 +989,7 @@ var CybersourceHelper = {
 
     addCardInfo: function (request, creditCardForm) {
         var StringUtils = require('dw/util/StringUtils');
-        request.card = new CybersourceHelper.csReference.Card();
+        request.card = new CybersourceHelper.getcsReference().Card();
         request.card.expirationMonth = StringUtils.formatNumber(creditCardForm.expirationMonth.value, '00');
         request.card.expirationYear = creditCardForm.expirationYear.value;
         request.card.accountNumber = creditCardForm.cardNumber.value;
@@ -938,27 +1031,30 @@ var CybersourceHelper = {
 
         setClientData(request, orderNo);
 
-        if (!empty(subscriptionToken)) {
-            var requestRecurringSubscriptionInfo = new CybersourceHelper.csReference.RecurringSubscriptionInfo();
+        if (subscriptionToken !== 'undefined' && !empty(subscriptionToken)) {
+            var requestRecurringSubscriptionInfo = new CybersourceHelper.getcsReference().RecurringSubscriptionInfo();
             requestRecurringSubscriptionInfo.subscriptionID = subscriptionToken;
             request.recurringSubscriptionInfo = requestRecurringSubscriptionInfo;
-        } else if (creditCardForm !== null) {
-            CybersourceHelper.addCardInfo(request, creditCardForm);
-        }
+        } else if (null !== creditCardForm && empty(creditCardForm.flexresponse.value)) {
+			CybersourceHelper.addCardInfo(request, creditCardForm);
+		} else if (null !== creditCardForm && !empty(creditCardForm.flexresponse.value)) {
+			request.tokenSource = new CybersourceHelper.getcsReference().TokenSource();
+			request.tokenSource.transientToken = creditCardForm.flexresponse.value;
+		}
 
         if (billTo !== null) {
             request.billTo = copyBillTo(billTo);
         }
 
         // validate specific stuff
-        request.payerAuthValidateService = new CybersourceHelper.csReference.PayerAuthValidateService();
+        request.payerAuthValidateService = new CybersourceHelper.getcsReference().PayerAuthValidateService();
         request.payerAuthValidateService.signedPARes = signedPARes;
         request.payerAuthValidateService.authenticationTransactionID = processorTransactionId;
 
-        request.purchaseTotals = new CybersourceHelper.csReference.PurchaseTotals();
+        request.purchaseTotals = new CybersourceHelper.getcsReference().PurchaseTotals();
         request.purchaseTotals.currency = amount.currencyCode;
         var items = [];
-        var item = new CybersourceHelper.csReference.Item();
+        var item = new CybersourceHelper.getcsReference().Item();
         var StringUtils = require('dw/util/StringUtils');
         item.id = 0;
         item.unitPrice = StringUtils.formatNumber(amount.value, '000000.00');
@@ -967,7 +1063,7 @@ var CybersourceHelper = {
 
         request.payerAuthValidateService.run = true;
         if (CybersourceHelper.getCardDecisionManagerEnable()){
-            request.afsService = new CybersourceHelper.csReference.AFSService();
+            request.afsService = new CybersourceHelper.getcsReference().AFSService();
             request.afsService.run = true;
         }
     },
@@ -975,7 +1071,7 @@ var CybersourceHelper = {
     // eslint-disable-next-line
     addPayerAuthReplyInfo: function (request, cavv, ucafAuthenticationData, ucafCollectionIndicator, eciRaw, commerceIndicator, xid, paresStatus, specificationVersion, directoryTrnsctnId, cavvAlgorithm, effectiveAuthenticationType, challengeCancelCode, authenticationStatusReason, acsTransactionID, authorizationPayload) {
         if (request.ccAuthService === null) {
-            request.ccAuthService = new CybersourceHelper.csReference.CCAuthService();
+            request.ccAuthService = new CybersourceHelper.getcsReference().CCAuthService();
         }
         if (commerceIndicator !== null) {
             request.ccAuthService.commerceIndicator = commerceIndicator;
@@ -1026,11 +1122,11 @@ var CybersourceHelper = {
         request.ccAuthService.paAuthenticationDate = dw.util.StringUtils.formatCalendar(new dw.util.Calendar(), 'yyyyMMddHHmmss');
 
         if (!empty(ucafAuthenticationData)) {
-            request.ucaf = new CybersourceHelper.csReference.UCAF();
+            request.ucaf = new CybersourceHelper.getcsReference().UCAF();
             request.ucaf.authenticationData = ucafAuthenticationData;
             request.ucaf.collectionIndicator = ucafCollectionIndicator;
         } else if (!empty(ucafCollectionIndicator)) {
-            request.ucaf = new CybersourceHelper.csReference.UCAF();
+            request.ucaf = new CybersourceHelper.getcsReference().UCAF();
             request.ucaf.collectionIndicator = ucafCollectionIndicator;
         }
         if (CybersourceHelper.getPASaveParesStatus() && paresStatus !== null) {
@@ -1051,7 +1147,7 @@ var CybersourceHelper = {
         request.apPaymentType = getPaymentType();
         request.purchaseTotals = copyPurchaseTotals(purchase);
         request.ap = copyAp(ap);
-        request.apAuthService = new CybersourceHelper.csReference.APAuthService();
+        request.apAuthService = new CybersourceHelper.getcsReference().APAuthService();
         request.apAuthService.run = true;
     },
 
@@ -1067,7 +1163,7 @@ var CybersourceHelper = {
         request.apPaymentType = getPaymentType();
         request.purchaseTotals = copyPurchaseTotals(purchase);
         request.ap = copyAp(ap);
-        request.apCheckoutDetailsService = new CybersourceHelper.csReference.APCheckOutDetailsService();
+        request.apCheckoutDetailsService = new CybersourceHelper.getcsReference().APCheckOutDetailsService();
         request.apCheckoutDetailsService.run = true;
     },
 
@@ -1084,7 +1180,7 @@ var CybersourceHelper = {
         request.purchaseTotals = copyPurchaseTotals(purchase);
         request.ap = copyAp(ap);
         request.apPaymentType = getPaymentType();
-        request.apConfirmPurchaseService = new CybersourceHelper.csReference.APConfirmPurchaseService();
+        request.apConfirmPurchaseService = new CybersourceHelper.getcsReference().APConfirmPurchaseService();
         request.apConfirmPurchaseService.run = true;
     },
 
@@ -1105,7 +1201,7 @@ var CybersourceHelper = {
         setClientData(request, refCode);
         request.purchaseTotals = copyPurchaseTotals(purchase);
         request.apPaymentType = getPaymentType();
-        request.apAuthReversalService = new CybersourceHelper.csReference.APAuthReversalService();
+        request.apAuthReversalService = new CybersourceHelper.getcsReference().APAuthReversalService();
         request.apAuthReversalService.authRequestID = authRequestID;
         request.apAuthReversalService.run = true;
     },
@@ -1126,7 +1222,7 @@ var CybersourceHelper = {
         setClientData(request, refCode);
         request.purchaseTotals = copyPurchaseTotals(purchase);
         request.apPaymentType = getPaymentType();
-        request.apCaptureService = new CybersourceHelper.csReference.APCaptureService();
+        request.apCaptureService = new CybersourceHelper.getcsReference().APCaptureService();
         request.apCaptureService.authRequestID = authRequestID;
         request.apCaptureService.run = true;
     },
@@ -1151,7 +1247,7 @@ var CybersourceHelper = {
         setClientData(request, refCode);
         request.purchaseTotals = copyPurchaseTotals(purchase);
         request.apPaymentType = getPaymentType();
-        request.apRefundService = new CybersourceHelper.csReference.APRefundService();
+        request.apRefundService = new CybersourceHelper.getcsReference().APRefundService();
         request.apRefundService.captureRequestID = authCaptureID;
         request.apRefundService.reason = reason;
         request.apRefundService.note = note;
@@ -1176,7 +1272,7 @@ var CybersourceHelper = {
         request.purchaseTotals = copyPurchaseTotals(purchase);
         request.ap = copyAp(ap);
         request.apPaymentType = getPaymentType();
-        request.apInitiateService = new CybersourceHelper.csReference.APInitiateService();
+        request.apInitiateService = new CybersourceHelper.getcsReference().APInitiateService();
         request.apInitiateService.run = true;
     },
 
@@ -1207,7 +1303,7 @@ var CybersourceHelper = {
         request.apPaymentType = alipayPaymentType;
         var endpoint = CybersourceHelper.getEndpoint();
         var testReconciliationID = CybersourceHelper.getTestAlipayReconciliationID();
-        var apInitiateService = new CybersourceHelper.csReference.APInitiateService();
+        var apInitiateService = new CybersourceHelper.getcsReference().APInitiateService();
 
         apInitiateService.returnURL = returnUrl;
         apInitiateService.productName = productName;
@@ -1230,7 +1326,7 @@ var CybersourceHelper = {
         setClientData(request, orderNo);
         request.apPaymentType = 'PPL';
 
-        var apBillingAgreementService = new CybersourceHelper.csReference.APBillingAgreementService();
+        var apBillingAgreementService = new CybersourceHelper.getcsReference().APBillingAgreementService();
 
         apBillingAgreementService.sessionsRequestID = requestID;
         request.apBillingAgreementService = apBillingAgreementService;
@@ -1252,7 +1348,7 @@ var CybersourceHelper = {
         setClientData(request, orderNo);
         request.apPaymentType = paymentType;
         var endpoint = CybersourceHelper.getEndpoint();
-        var apCheckStatusService = new CybersourceHelper.csReference.APCheckStatusService();
+        var apCheckStatusService = new CybersourceHelper.getcsReference().APCheckStatusService();
 
         switch (paymentType) {
             case 'APY':
@@ -1284,7 +1380,7 @@ var CybersourceHelper = {
         request.merchantID = CybersourceHelper.getMerchantID();
         setClientData(request, refCode);
 
-        var paypalCaptureService = new CybersourceHelper.csReference.PayPalDoCaptureService();
+        var paypalCaptureService = new CybersourceHelper.getcsReference().PayPalDoCaptureService();
         paypalCaptureService.paypalAuthorizationId = transactionId;
         paypalCaptureService.completeType = transactionType;
         paypalCaptureService.paypalAuthorizationRequestID = paypalAuthorizationRequestId;
@@ -1300,7 +1396,7 @@ var CybersourceHelper = {
     payPalReversalService: function (request, transactionId, requestId, requestToken, refCode) {
         request.merchantID = CybersourceHelper.getMerchantID();
         setClientData(request, refCode);
-        var payPalAuthReversalService = new CybersourceHelper.csReference.PayPalAuthReversalService();
+        var payPalAuthReversalService = new CybersourceHelper.getcsReference().PayPalAuthReversalService();
         payPalAuthReversalService.paypalAuthorizationId = transactionId;
         payPalAuthReversalService.paypalAuthorizationRequestID = requestId;
         payPalAuthReversalService.paypalAuthorizationRequestToken = requestToken;
@@ -1314,7 +1410,7 @@ var CybersourceHelper = {
      *
      *************************************************************************** */
     payPalRefundService: function (request, merchantRefCode, requestId, paymentType) {
-        var payPalRefundService = new CybersourceHelper.csReference.APRefundService();
+        var payPalRefundService = new CybersourceHelper.getcsReference().APRefundService();
         payPalRefundService.refundRequestID = requestId;
         request.apRefundService = payPalRefundService;
         request.apPaymentType = paymentType;
@@ -1327,7 +1423,7 @@ var CybersourceHelper = {
      *
      *************************************************************************** */
     payPalAuthReversalService: function (request, merchantRefCode, requestId, paymentType) {
-        var apAuthReversalService = new CybersourceHelper.csReference.APAuthReversalService();
+        var apAuthReversalService = new CybersourceHelper.getcsReference().APAuthReversalService();
         apAuthReversalService.authRequestID = requestId;
         request.apAuthReversalService = apAuthReversalService;
         request.apPaymentType = paymentType;
@@ -1340,7 +1436,7 @@ var CybersourceHelper = {
      *
      *************************************************************************** */
     payPalCaptureService: function (request, merchantRefCode, requestId, paymentType) {
-        var apCaptureService = new CybersourceHelper.csReference.APCaptureService();
+        var apCaptureService = new CybersourceHelper.getcsReference().APCaptureService();
         apCaptureService.authRequestID = requestId;
         request.apCaptureService = apCaptureService;
         request.apPaymentType = paymentType;
@@ -1357,7 +1453,7 @@ var CybersourceHelper = {
         var serviceRequest = serviceRequestObj;
         serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         setClientData(serviceRequest, refCode);
-        var ccAuthReversalService = new CybersourceHelper.csReference.CCAuthReversalService();
+        var ccAuthReversalService = new CybersourceHelper.getcsReference().CCAuthReversalService();
         ccAuthReversalService.authRequestID = requestID;
         serviceRequest.ccAuthReversalService = ccAuthReversalService;
         serviceRequest.ccAuthReversalService.run = true;
@@ -1369,7 +1465,7 @@ var CybersourceHelper = {
      *
      *************************************************************************** */
     ccCaptureService: function (request, merchantRefCode, requestId, paymentType) {
-        var ccCaptureService = new CybersourceHelper.csReference.CCCaptureService();
+        var ccCaptureService = new CybersourceHelper.getcsReference().CCCaptureService();
         ccCaptureService.authRequestID = requestId;
         request.ccCaptureService = ccCaptureService;
         request.paymentSolution = paymentType;
@@ -1377,7 +1473,7 @@ var CybersourceHelper = {
     },
 
     ccCreditService: function (request, merchantRefCode, requestId, paymentType) {
-        var ccCreditService = new CybersourceHelper.csReference.CCCreditService();
+        var ccCreditService = new CybersourceHelper.getcsReference().CCCreditService();
         ccCreditService.captureRequestID = requestId;
         request.ccCreditService = ccCreditService;
         request.paymentSolution = paymentType;
@@ -1390,7 +1486,7 @@ var CybersourceHelper = {
      *    5446045635766630804009
      *************************************************************************** */
     aliPayRefundService: function (request, requestId, paymentType) {
-        var aliPayRefundService = new CybersourceHelper.csReference.APRefundService();
+        var aliPayRefundService = new CybersourceHelper.getcsReference().APRefundService();
         aliPayRefundService.apInitiateRequestID = requestId;
         request.apRefundService = aliPayRefundService;
         request.apPaymentType = paymentType;
@@ -1403,7 +1499,7 @@ var CybersourceHelper = {
      *
      *************************************************************************** */
     banktransferRefundService: function (request, merchantRefCode, requestId, paymentType) {
-        var banktransferRefundService = new CybersourceHelper.csReference.APRefundService();
+        var banktransferRefundService = new CybersourceHelper.getcsReference().APRefundService();
         banktransferRefundService.refundRequestID = requestId;
         request.apRefundService = banktransferRefundService;
         request.apPaymentType = paymentType;
@@ -1419,11 +1515,11 @@ var CybersourceHelper = {
         var PaymentMgr = require('dw/order/PaymentMgr');
         var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
         var paymentProcessorID = PaymentMgr.getPaymentMethod(paymentMethodID).paymentProcessor.ID;
-        request.decisionManager = new CybersourceHelper.csReference.DecisionManager();
+        request.decisionManager = new CybersourceHelper.getcsReference().DecisionManager();
         var flag = false;
         if (CybersourceConstants.BANK_TRANSFER_PROCESSOR.equals(paymentProcessorID)) {
             request.decisionManager.enabled = CybersourceHelper.getBankTransferDecisionManagerFlag();
-            request.afsService = new CybersourceHelper.csReference.AFSService();
+            request.afsService = new CybersourceHelper.getcsReference().AFSService();
             request.afsService.run = true;
         } else if (CybersourceConstants.METHOD_PAYPAL.equals(paymentMethodID) || CybersourceConstants.METHOD_PAYPAL_CREDIT.equals(paymentMethodID)) {
             request.decisionManager.enabled = CybersourceHelper.getPayPapDMEnableFlag();
@@ -1435,7 +1531,7 @@ var CybersourceHelper = {
             request.merchantID = CybersourceHelper.getMerchantID();
             var fingerprint = null;
             if (enableDeviceFingerprint) {
-                fingerprint = session.sessionID;
+                fingerprint = replaceCharsInSessionID(session.sessionID);
             }
 
             setClientData(request, refCode, fingerprint);
@@ -1459,7 +1555,7 @@ var CybersourceHelper = {
         }
         // DM standalone
         if(flag){
-            request.afsService = new CybersourceHelper.csReference.AFSService();
+            request.afsService = new CybersourceHelper.getcsReference().AFSService();
             request.afsService.run = true;
         }
     },
@@ -1470,7 +1566,7 @@ var CybersourceHelper = {
      * @param {*} request request
      */
     postPreAuth: function (saleObject, request) {
-        var apSaleService = new CybersourceHelper.csReference.APSaleService();
+        var apSaleService = new CybersourceHelper.getcsReference().APSaleService();
         apSaleService.cancelURL = saleObject.cancelURL;
         apSaleService.successURL = saleObject.successURL;
         apSaleService.failureURL = saleObject.failureURL;
@@ -1494,5 +1590,6 @@ module.exports = {
     copyBillTo: copyBillTo,
     copyShipTo: copyShipTo,
     copyItemFrom: copyItemFrom,
-    copyCard: copyCreditCard
+    copyCard: copyCreditCard,
+    replaceCharsInSessionID: replaceCharsInSessionID
 };

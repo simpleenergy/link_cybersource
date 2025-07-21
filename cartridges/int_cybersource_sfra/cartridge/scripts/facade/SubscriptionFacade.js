@@ -3,9 +3,9 @@
 var Logger = require('dw/system/Logger');
 // var dwsvc = require('dw/svc');
 var UUIDUtils = require('dw/util/UUIDUtils');
-var libCybersource = require('~/cartridge/scripts/cybersource/libCybersource');
-var CybersourceConstants = require('~/cartridge/scripts/utils/CybersourceConstants');
-var CSServices = require('~/cartridge/scripts/init/SoapServiceInit');
+var libCybersource = require('*/cartridge/scripts/cybersource/libCybersource');
+var CybersourceConstants = require('*/cartridge/scripts/utils/CybersourceConstants');
+var CSServices = require('*/cartridge/scripts/init/SoapServiceInit');
 
 /**
  * This function creates subscription on basis of billto,card object,amount and currency of the order.
@@ -21,7 +21,7 @@ function CreateSubscription(billTo, card, purchaseTotals) {
 
     var CybersourceHelper = libCybersource.getCybersourceHelper();
     // eslint-disable-next-line
-    var csReference = webreferences2.CyberSourceTransaction;
+    var csReference = new CybersourceHelper.getcsReference();
     var serviceRequest = new csReference.RequestMessage();
 
     CybersourceHelper.addPaySubscriptionCreateService(serviceRequest, billToObject, purchaseObject, cardObject, UUIDUtils.createUUID());
@@ -30,11 +30,9 @@ function CreateSubscription(billTo, card, purchaseTotals) {
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_CREDIT_CARD);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[subscriptionFacade.js] Error in subscription request ( {0} )', e.message);
@@ -68,7 +66,7 @@ function CreateSubscription(billTo, card, purchaseTotals) {
 function DeleteSubscription(subscriptionID) {
     var CybersourceHelper = libCybersource.getCybersourceHelper();
     // eslint-disable-next-line
-    var csReference = webreferences2.CyberSourceTransaction;
+    var csReference = new CybersourceHelper.getcsReference();
     var serviceRequest = new csReference.RequestMessage();
 
     CybersourceHelper.addPaySubscriptionDeleteService(serviceRequest, UUIDUtils.createUUID(), subscriptionID);
@@ -77,11 +75,9 @@ function DeleteSubscription(subscriptionID) {
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_CREDIT_CARD);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[libCybersource.js] Error in subscription request ( {0} )', e.message);
@@ -121,7 +117,7 @@ function UpdateSubscription(billTo, card, purchaseTotals, storedSubscriptionID) 
     var subscriptionObject = {};
 
     // eslint-disable-next-line
-    var csReference = webreferences2.CyberSourceTransaction;
+    var csReference = new CybersourceHelper.getcsReference();
     var serviceRequest = new csReference.RequestMessage();
 
     CybersourceHelper.addSubscriptionUpdateInfo(serviceRequest, billToObject, purchaseObject, cardObject, storedSubscriptionID);
@@ -130,11 +126,9 @@ function UpdateSubscription(billTo, card, purchaseTotals, storedSubscriptionID) 
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_CREDIT_CARD);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[UpdateSubscription.js] Error in Service Call', e.message);
@@ -172,7 +166,7 @@ function ViewSubscription(subscriptionID) {
     var CybersourceHelper = libCybersource.getCybersourceHelper();
 
     // eslint-disable-next-line
-    var csReference = webreferences2.CyberSourceTransaction;
+    var csReference = new CybersourceHelper.getcsReference();
     var serviceRequest = new csReference.RequestMessage();
 
     CybersourceHelper.addPaySubscriptionRetrieveService(serviceRequest, UUIDUtils.createUUID(), subscriptionID);
@@ -181,11 +175,9 @@ function ViewSubscription(subscriptionID) {
     // send request
     try {
         var service = CSServices.CyberSourceTransactionService;
-        var merchantCrdentials = CybersourceHelper.getMerhcantCredentials(CybersourceConstants.METHOD_CREDIT_CARD);
         var requestWrapper = {};
-        serviceRequest.merchantID = merchantCrdentials.merchantID;
+        serviceRequest.merchantID = CybersourceHelper.getMerchantID();
         requestWrapper.request = serviceRequest;
-        requestWrapper.merchantCredentials = merchantCrdentials;
         serviceResponse = service.call(requestWrapper);
     } catch (e) {
         Logger.error('[libCybersource.js] Error in subscription request ( {0} )', e.message);
