@@ -160,7 +160,7 @@ var CyberSourceTransactionService = LocalServiceRegistry.createService('cybersou
                   "{Element}{" +
                   WSU_NS +
                   "}Timestamp;" +
-                  "{Content}{http://schemas.xmlsoap.org/soap/envelope/}Body",
+                  "{Content}{http://schemas.xmlsoap.org/soap/envelope/}Body"
               );
         }
         else {
