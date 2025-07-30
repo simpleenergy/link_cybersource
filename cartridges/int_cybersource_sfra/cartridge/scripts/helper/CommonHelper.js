@@ -367,17 +367,17 @@ function CreateCybersourceItemObject(Basket) {
         paymentInstrument = basket.getPaymentInstruments()[0];
     }
     var selectedPaymentMethod = paymentInstrument.paymentMethod;
-    var processor = GetPaymentType(selectedPaymentMethod).paymentProcessor;
+    var processor = GetPaymentType(selectedPaymentMethod).paymentProcessor; 
     var lineItems = basket.allLineItems.iterator();
     var ArrayList = require('dw/util/ArrayList');
     var itemObjects = new ArrayList();
     var count = 1;
     while (lineItems.hasNext()) {
         var lineItem = lineItems.next();
-        var ItemObject = require('*/cartridge/scripts/cybersource/CybersourceItemObject');
+        var ItemObject = require('~/cartridge/scripts/cybersource/CybersourceItemObject');
         var itemObject = new ItemObject();
         if (lineItem instanceof dw.order.ProductLineItem) {
-            itemObject.setUnitPrice(StringUtils.formatNumber(lineItem.basePrice.value, '000000.00', locale));
+            itemObject.setUnitPrice(StringUtils.formatNumber(lineItem.proratedPrice.value, '000000.00', locale));
             itemObject.setQuantity(lineItem.quantityValue);
             if (discountLineItemHelpers.isDiscountProductId(lineItem.productID)) {
                 itemObject.setProductCode('coupon');
@@ -389,12 +389,6 @@ function CreateCybersourceItemObject(Basket) {
             itemObject.setProductSKU(lineItem.productID);
             itemObject.setTaxAmount(StringUtils.formatNumber(lineItem.adjustedTax.value, '000000.00', locale));
             setTotalAmount(processor, itemObject, lineItem.adjustedGrossPrice.value, locale);
-
-            if (lineItem.lineItemCtnr.priceAdjustments.length > 0 || lineItem.proratedPriceAdjustmentPrices.length > 0){
-                itemObject.unitPrice = StringUtils.formatNumber(lineItem.proratedPrice.value/lineItem.quantityValue, '000000.00', locale);
-                setTotalAmount(processor, itemObject, lineItem.proratedPrice.value, locale);
-            }
-
             itemObject.setId(count);
         } else if (lineItem instanceof dw.order.GiftCertificateLineItem) {
             itemObject.setUnitPrice(StringUtils.formatNumber(lineItem.grossPrice.value, '000000.00', locale));
@@ -425,21 +419,11 @@ function CreateCybersourceItemObject(Basket) {
             itemObject.setTaxAmount(StringUtils.formatNumber(lineItem.adjustedTax.value, '000000.00', locale));
             setTotalAmount(processor, itemObject, lineItem.adjustedGrossPrice.value, locale);
             itemObject.setId(count);
-        } else if (lineItem instanceof dw.order.PriceAdjustment) {
-            itemObject.setUnitPrice(StringUtils.formatNumber(lineItem.basePrice.value < 0 ? 0 : lineItem.basePrice.value, '000000.00', locale));
-            itemObject.setQuantity(lineItem.quantity);
-            itemObject.setProductCode('PRICE_ADJUSTMENT');
-            itemObject.setProductName('PRICE_ADJUSTMENT');
-            itemObject.setProductSKU('PRICE_ADJUSTMENT');
-            itemObject.setTaxAmount(StringUtils.formatNumber(lineItem.tax.value, '000000.00', locale));
-            setTotalAmount(processor, itemObject, lineItem.basePrice.value < 0 ? 0 : lineItem.basePrice.value, locale);
-            itemObject.setId(count);
-        } else {
-            continue;
         }
-
-        count += 1;
-        itemObjects.add(itemObject);
+        if (!(lineItem instanceof dw.order.PriceAdjustment)) {
+            count += 1;
+            itemObjects.add(itemObject);
+        }
     }
 
     return { success: true, items: itemObjects };
